@@ -1,0 +1,10 @@
+{
+    "id": "obsidian-queue-plugin",
+    "name": "Queueueueue",
+    "version": "1.0.9",
+    "minAppVersion": "0.15.0",
+    "description": "Port of the local Python spaced-repetition practice app into an Obsidian plugin",
+    "author": "Antigravity",
+    "authorUrl": "",
+    "isDesktopOnly": false
+}

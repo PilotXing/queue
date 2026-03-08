@@ -1,0 +1,15 @@
+# npm dependencies
+node_modules/
+
+# Local Obsidian plugin settings/data
+data.json
+
+# IDE / Editor folders
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+questions.json
