@@ -123,9 +123,9 @@
 /* Mobile responsive adjustments */
 @media (max-width: 600px) {
     .practice-sidebar {
-        flex: 0 0 45px;
-        min-width: 40px;
-        max-width: 50px;
+        flex: 0 0 40px;
+        min-width: 35px;
+        max-width: 45px;
     }
 
     .practice-sidebar h4 {
@@ -138,7 +138,35 @@
 
     .practice-queue-item {
         justify-content: center;
-        padding: 8px 4px;
+        padding: 8px 2px;
+    }
+
+    .practice-content-area {
+        padding: 12px 16px;
+        /* Reduced from 24px */
+    }
+
+    .practice-stem {
+        font-size: 1.1em;
+        /* Slightly smaller on mobile */
+    }
+
+    .practice-choice {
+        padding: 10px 14px;
+        font-size: 0.95em;
+    }
+
+    .practice-actions {
+        flex-wrap: wrap;
+    }
+
+    .practice-actions button {
+        flex: 1 1 auto;
+        min-width: 120px;
+    }
+
+    .practice-toolbar-row {
+        gap: 8px;
     }
 }
 
