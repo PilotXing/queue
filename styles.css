@@ -1,86 +1,80 @@
-.practice-view-root {
+/* Base View Styles */
+.practice-view-root, .practice-control-root {
     display: flex;
     flex-direction: column;
     height: 100%;
     font-family: var(--font-text);
     overflow-y: auto;
+}
+
+.practice-view-root {
+    padding: 30px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.practice-control-root {
     padding: 12px;
 }
 
+/* Sidebar Specific */
 .practice-sidebar-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding-bottom: 16px;
+    gap: 12px;
+    padding-bottom: 20px;
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .practice-toolbar-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.85em;
+    gap: 10px;
+    font-size: 0.9em;
     flex-wrap: wrap;
 }
 
-.practice-toolbar-row select {
-    flex: 1;
-    min-width: 100px;
-}
-
-.practice-toolbar-row input[type="range"] {
+.practice-toolbar-row select, .practice-toolbar-row input[type="range"] {
     flex: 1;
 }
 
-.practice-sidebar-content {
-    padding: 16px 0;
-    border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.practice-sidebar-queue {
-    flex: 1;
-    padding-top: 16px;
-}
-
+/* Question Content Styles */
 .practice-header {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.85em;
+    justify-content: space-between;
+    font-size: 0.9em;
     color: var(--text-muted);
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .practice-stem {
-    font-size: 1.1em;
+    font-size: 1.3em;
     font-weight: 600;
-    margin-bottom: 16px;
-    line-height: 1.4;
+    margin-bottom: 30px;
+    line-height: 1.6;
 }
 
 .practice-choices {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
 }
 
 .practice-choice {
-    padding: 10px 14px;
-    border-radius: 6px;
+    padding: 14px 20px;
+    border-radius: 8px;
     background-color: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
     transition: all 0.2s;
     display: flex;
     align-items: center;
     cursor: pointer;
-    font-size: 0.95em;
 }
 
 .practice-choice-marker {
     font-weight: bold;
     color: var(--interactive-accent);
-    margin-right: 8px;
-    flex-shrink: 0;
+    margin-right: 12px;
 }
 
 .practice-selected-choice {
@@ -95,30 +89,28 @@
 }
 
 .practice-answer-reveal {
-    margin-top: 16px;
-    padding: 12px;
+    margin-top: 24px;
+    padding: 20px;
     background-color: var(--background-primary-alt);
-    border-radius: 6px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.9em;
 }
 
 .practice-actions {
-    margin-top: 16px;
+    margin-top: 30px;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    gap: 15px;
 }
 
 .practice-actions button {
-    width: 100%;
-    padding: 8px;
+    flex: 1;
+    padding: 12px;
+    font-weight: 600;
 }
 
 .practice-btn-submit {
     background-color: var(--interactive-accent);
     color: var(--text-on-accent);
-    font-weight: 600;
 }
 
 .practice-btn-wrong {
@@ -127,6 +119,14 @@
 }
 
 /* Queue List Styles */
+.practice-sidebar-queue h4 {
+    margin: 20px 0 10px 0;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
 .practice-queue-list {
     display: flex;
     flex-direction: column;
@@ -135,11 +135,12 @@
 .practice-queue-item {
     display: flex;
     align-items: center;
-    padding: 6px 8px;
+    padding: 8px 10px;
     cursor: pointer;
-    font-size: 0.8em;
+    font-size: 0.85em;
     border-bottom: 1px solid var(--background-modifier-border-soft);
-    gap: 6px;
+    gap: 8px;
+    transition: background-color 0.1s;
 }
 
 .practice-queue-item:hover {
@@ -148,16 +149,21 @@
 
 .practice-queue-item.is-active {
     background-color: var(--background-modifier-hover);
-    border: 2px solid magenta;
+    border: 1px solid magenta;
     border-radius: 4px;
 }
 
 .practice-queue-item.is-correct {
-    background-color: rgba(var(--background-modifier-success-rgb, 68, 188, 100), 0.15);
+    border-left: 3px solid var(--background-modifier-success);
 }
 
 .practice-queue-item.is-wrong {
-    background-color: rgba(var(--background-modifier-error-rgb, 233, 93, 93), 0.15);
+    border-left: 3px solid var(--background-modifier-error);
+}
+
+.practice-queue-item-idx {
+    opacity: 0.5;
+    font-variant-numeric: tabular-nums;
 }
 
 .practice-queue-item-title {
@@ -168,63 +174,50 @@
 }
 
 .practice-queue-item-fam-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
 }
 
-/* Summary View Styles */
+/* Summary View */
 .practice-summary-view {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 24px;
-    gap: 16px;
+    padding: 40px;
+    gap: 20px;
 }
 
 .practice-summary-stats {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin: 12px 0;
-    width: 100%;
+    gap: 30px;
+    margin: 20px 0;
 }
 
 .stat-item {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    padding: 8px 12px;
+    padding: 15px 25px;
     background-color: var(--background-secondary);
-    border-radius: 6px;
+    border-radius: 12px;
 }
 
 .stat-value {
-    font-size: 1.2em;
+    font-size: 2em;
     font-weight: bold;
 }
 
-.stat-label {
-    font-size: 0.9em;
-    color: var(--text-muted);
-}
+.stat-correct { color: var(--text-success); }
+.stat-wrong { color: var(--text-error); }
 
-.stat-correct .stat-value { color: var(--text-success); }
-.stat-wrong .stat-value { color: var(--text-error); }
-
-/* Mobile Optimizations */
-@media screen and (max-width: 480px) {
-    .practice-view-root {
-        padding: 8px;
-    }
-    .practice-stem {
-        font-size: 1em;
-    }
-    .practice-choice {
-        padding: 8px 10px;
-        font-size: 0.9em;
-    }
+.practice-btn-restart {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    padding: 15px 30px;
+    font-size: 1.1em;
+    border-radius: 8px;
 }
