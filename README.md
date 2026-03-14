@@ -18,6 +18,50 @@ A powerful spaced repetition and practice plugin for Obsidian, designed with Goo
     - **Question History Bar**: A trial-by-trial colored history bar at the top of each question shows your past performance.
 - **In-Sidebar Settings**: Adjust font size, text colors, background colors, and re-insertion offsets directly from the control sidebar.
 
+## File Templates
+
+### Question File (.md)
+Questions are detected by the `#q` tag. Include options as a markdown list starting with `**A.**`, `**B.**`, etc.
+
+```markdown
+---
+category: Navigation
+id: 101
+familiarity: 50
+answer: A
+tags: ["q"]
+---
+# 单选题 (or 多选题 for MCQ)
+What is the primary color of Material Design?
+
+- **A.** Primary 600
+- **B.** Signal Red
+- **C.** Neon Green
+
+## Practice History
+...
+```
+
+### Practice Session File (.md)
+Generated in the `Practice_Sessions/` folder. Opening these files resumes the practice.
+
+```markdown
+---
+type: practice_session
+currentIndex: 2
+isFinished: false
+category: Navigation
+timestamp: 2026-03-14_13-00-00
+---
+# Autosaved Session - Navigation
+
+#practice_resume
+
+## Queue
+[[Question 1]]
+[[Question 2]]
+```
+
 ## Usage
 
 1. **Start Practice**: Click the check-square ribbon icon or use the `Open Practice View` command.
