@@ -18,3 +18,14 @@ data.json
 .obsidian/
 Practice_Sessions/
 questions.json
+
+# Processed Data & Dev Tools
+Questions_Import/
+Questions_SOP/
+*.py
+*.ipynb
+*.json
+!manifest.json
+!package.json
+!package-lock.json
+!data.json

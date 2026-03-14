@@ -2,6 +2,8 @@
 
 A powerful spaced repetition and practice plugin for Obsidian, designed with Google Material Design principles and optimized for both Desktop and Mobile use.
 
+[中文版 (Chinese Version)](README_CN.md)
+
 ## Key Features
 
 - **Split-View Architecture**: Focus on your questions in a dedicated center tab while keeping session controls, filters, and the queue list in the official Obsidian right sidebar.
