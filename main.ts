@@ -82,11 +82,59 @@ export default class PracticePlugin extends Plugin {
 
         this.addSettingTab(new PracticeSettingTab(this.app, this));
 
+        // Detect manual session file openings
+        this.registerEvent(
+            this.app.workspace.on('file-open', (file) => this.onFileOpen(file))
+        );
+
         // Initial queue load
         if (this.settings.savedQueuePaths.length > 0) {
             await this.restoreSession();
         } else {
             this.refreshQueue();
+        }
+    }
+
+    private async onFileOpen(file: TFile | null) {
+        if (!file) return;
+        const cache = this.app.metadataCache.getFileCache(file);
+        if (cache?.frontmatter?.type === 'practice_session') {
+            await this.loadSessionFromFile(file);
+        }
+    }
+
+    async loadSessionFromFile(file: TFile) {
+        const content = await this.app.vault.read(file);
+        const cache = this.app.metadataCache.getFileCache(file);
+        const fm = cache?.frontmatter || {};
+
+        this.filterCategory = fm.category || "All";
+        this.currentQIndex = fm.currentIndex || 0;
+        this.isFinished = fm.isFinished || false;
+
+        // Parse links from content
+        this.currentQueue = [];
+        const linkRegex = /\[\[(.*?)(?:\|.*?)?\]\]/g;
+        let match;
+        while ((match = linkRegex.exec(content)) !== null) {
+            const path = match[1];
+            const qFile = this.app.vault.getAbstractFileByPath(path);
+            if (qFile instanceof TFile) {
+                const qCache = this.app.metadataCache.getFileCache(qFile);
+                const qFm = qCache?.frontmatter || {};
+                this.currentQueue.push({
+                    file: qFile,
+                    id: qFm.id || 0,
+                    familiarity: qFm.familiarity ?? 50,
+                    answer: qFm.answer?.toString() || ''
+                });
+            }
+        }
+
+        if (this.currentQueue.length > 0) {
+            await this.saveSession();
+            await this.activateView();
+            this.refreshAllViews();
         }
     }
 
@@ -352,10 +400,16 @@ class PracticeView extends ItemView {
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
         if (this.app.workspace.activeLeaf?.view !== this) return;
 
+        const key = e.key.toLowerCase();
+        
+        if (key === 'escape') {
+            this.leaf.detach();
+            e.preventDefault();
+            return;
+        }
+
         const q = this.plugin.currentQueue[this.plugin.currentQIndex];
         if (!q) return;
-
-        const key = e.key.toLowerCase();
 
         if (this.plugin.showingAnswer) {
             if (key === 'enter' || key === ' ') {
@@ -482,6 +536,9 @@ class PracticeView extends ItemView {
         const headerEl = container.createEl('div', { cls: 'practice-header' });
         headerEl.createEl('span', { text: `Q: ${this.plugin.currentQIndex + 1} / ${this.plugin.currentQueue.length}` });
         headerEl.createEl('span', { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
+
+        const escBtn = headerEl.createEl('button', { text: 'ESC', cls: 'practice-header-esc' });
+        escBtn.onclick = () => this.leaf.detach();
 
         const stemEl = container.createEl('div', { cls: 'practice-stem' });
         await MarkdownRenderer.renderMarkdown(`**[${isSingle ? 'S' : 'M'}]**\n\n${stemText}`, stemEl, qMeta.file.path, this);

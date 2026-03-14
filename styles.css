@@ -42,9 +42,27 @@
 .practice-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 0.9em;
     color: var(--text-muted);
     margin-bottom: 20px;
+}
+
+.practice-header-esc {
+    background: none;
+    border: 1px solid var(--background-modifier-border);
+    padding: 2px 8px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.practice-header-esc:hover {
+    background-color: var(--background-modifier-error);
+    color: var(--text-on-accent);
+    border-color: var(--background-modifier-error);
 }
 
 .practice-stem {

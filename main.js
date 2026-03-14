@@ -94,10 +94,57 @@ var PracticePlugin = class extends import_obsidian.Plugin {
         callback: () => this.activateControlView()
       });
       this.addSettingTab(new PracticeSettingTab(this.app, this));
+      this.registerEvent(
+        this.app.workspace.on("file-open", (file) => this.onFileOpen(file))
+      );
       if (this.settings.savedQueuePaths.length > 0) {
         yield this.restoreSession();
       } else {
         this.refreshQueue();
+      }
+    });
+  }
+  onFileOpen(file) {
+    return __async(this, null, function* () {
+      var _a;
+      if (!file)
+        return;
+      const cache = this.app.metadataCache.getFileCache(file);
+      if (((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.type) === "practice_session") {
+        yield this.loadSessionFromFile(file);
+      }
+    });
+  }
+  loadSessionFromFile(file) {
+    return __async(this, null, function* () {
+      var _a, _b;
+      const content = yield this.app.vault.read(file);
+      const cache = this.app.metadataCache.getFileCache(file);
+      const fm = (cache == null ? void 0 : cache.frontmatter) || {};
+      this.filterCategory = fm.category || "All";
+      this.currentQIndex = fm.currentIndex || 0;
+      this.isFinished = fm.isFinished || false;
+      this.currentQueue = [];
+      const linkRegex = /\[\[(.*?)(?:\|.*?)?\]\]/g;
+      let match;
+      while ((match = linkRegex.exec(content)) !== null) {
+        const path = match[1];
+        const qFile = this.app.vault.getAbstractFileByPath(path);
+        if (qFile instanceof import_obsidian.TFile) {
+          const qCache = this.app.metadataCache.getFileCache(qFile);
+          const qFm = (qCache == null ? void 0 : qCache.frontmatter) || {};
+          this.currentQueue.push({
+            file: qFile,
+            id: qFm.id || 0,
+            familiarity: (_a = qFm.familiarity) != null ? _a : 50,
+            answer: ((_b = qFm.answer) == null ? void 0 : _b.toString()) || ""
+          });
+        }
+      }
+      if (this.currentQueue.length > 0) {
+        yield this.saveSession();
+        yield this.activateView();
+        this.refreshAllViews();
       }
     });
   }
@@ -368,10 +415,15 @@ var PracticeView = class extends import_obsidian.ItemView {
       return;
     if (((_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view) !== this)
       return;
+    const key = e.key.toLowerCase();
+    if (key === "escape") {
+      this.leaf.detach();
+      e.preventDefault();
+      return;
+    }
     const q = this.plugin.currentQueue[this.plugin.currentQIndex];
     if (!q)
       return;
-    const key = e.key.toLowerCase();
     if (this.plugin.showingAnswer) {
       if (key === "enter" || key === " ") {
         this.plugin.nextQuestion(true);
@@ -487,6 +539,8 @@ var PracticeView = class extends import_obsidian.ItemView {
       const headerEl = container.createEl("div", { cls: "practice-header" });
       headerEl.createEl("span", { text: `Q: ${this.plugin.currentQIndex + 1} / ${this.plugin.currentQueue.length}` });
       headerEl.createEl("span", { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
+      const escBtn = headerEl.createEl("button", { text: "ESC", cls: "practice-header-esc" });
+      escBtn.onclick = () => this.leaf.detach();
       const stemEl = container.createEl("div", { cls: "practice-stem" });
       yield import_obsidian.MarkdownRenderer.renderMarkdown(`**[${isSingle ? "S" : "M"}]**
 
