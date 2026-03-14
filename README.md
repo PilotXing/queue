@@ -30,43 +30,45 @@ A powerful spaced repetition and practice plugin for Obsidian, designed with Goo
 ## Data Structure Templates
 
 ### 1. Question File Template
-Questions are standard Markdown files with specific frontmatter and headings.
+Questions are standard Markdown files with simplified formatting.
 
 **Template:**
 ```markdown
 ---
+category: "Category Name"
+answer: "Single letter or MCQ string like 'BD'"
 tags: [q]
 id: [Unique ID]
-category: [Category Name]
 familiarity: [0-100]
-answer: [Single letter or MCQ string like 'BD']
 ---
-# [单选题 or 多选题]
+# [Stem text...]
+- A [Choice A]
+- B [Choice B]
+- C [Choice C]
+- D [Choice D]
 
-[Stem text...]
-
-- **A.** [Choice A]
-- **B.** [Choice B]
-- **C.** [Choice C]
-- **D.** [Choice D]
+# Practice History
+| Date | Selected | Correct? |
+|---|---|---|
 ```
 
 **Example:**
 ```markdown
 ---
+category: "B737 Engine"
+answer: "B"
 tags: [q]
 id: 101
-category: Aviation
-familiarity: 50
-answer: B
+familiarity: 0
 ---
-# 单选题
+# 不要依赖目视机体结冰为标志来接通发动机防冰，应使用 (  ) 来作为标准。
+- A 温度
+- B 露点温度
+- C 可见水汽
 
-不要依赖目视机体结冰为标志来接通发动机防冰，应使用 (  ) 来作为标准。
-
-- **A.** 温度
-- **B.** 露点温度
-- **C.** 可见水汽
+# Practice History
+| Date | Selected | Correct? |
+|---|---|---|
 ```
 
 ### 2. Practice Session Template

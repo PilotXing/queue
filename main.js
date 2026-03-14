@@ -339,13 +339,13 @@ ${links}`;
       const content = yield this.app.vault.read(qMeta.file);
       let newContent = content;
       const line = `| ${ts} | ${answerStr} | ${status} |`;
-      if (content.includes("## Practice History")) {
+      if (content.includes("# Practice History")) {
         newContent += `
 ${line}`;
       } else {
         newContent += `
 
-## Practice History
+# Practice History
 | Date | Selected | Correct? |
 |---|---|---|
 ${line}`;
@@ -567,10 +567,10 @@ var PracticeView = class extends import_obsidian.ItemView {
       const content = yield this.app.vault.cachedRead(qMeta.file);
       const lines = content.split("\n");
       const isSingle = qMeta.answer.length <= 1;
-      const firstChoiceIndex = lines.findIndex((l) => /^- \*\*[A-Z]\.\*\*/.test(l));
+      const firstChoiceIndex = lines.findIndex((l) => /^- [A-Z] /.test(l));
       let stemText = lines.slice(lines.findIndex((l) => l.startsWith("# ")) + 1, firstChoiceIndex).join("\n").trim();
       this.plugin.activeChoices = [];
-      const choicesRegex = /^- \*\*([A-Z])\.\*\* (.*)$/gm;
+      const choicesRegex = /^- ([A-Z]) (.*)$/gm;
       let match;
       while ((match = choicesRegex.exec(content)) !== null) {
         this.plugin.activeChoices.push({ char: match[1], text: match[2].trim() });
