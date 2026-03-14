@@ -8,7 +8,8 @@ import {
     moment,
     Setting,
     PluginSettingTab,
-    TFolder
+    TFolder,
+    Platform
 } from 'obsidian';
 
 export const VIEW_TYPE_PRACTICE = 'practice-view';
@@ -403,8 +404,7 @@ class PracticeView extends ItemView {
         const key = e.key.toLowerCase();
         
         if (key === 'escape') {
-            this.leaf.detach();
-            e.preventDefault();
+            // Revert: Remove escape detach logic as requested
             return;
         }
 
@@ -488,7 +488,28 @@ class PracticeView extends ItemView {
         const qMeta = this.plugin.currentQueue[this.plugin.currentQIndex];
         if (!qMeta) return;
 
-        await this.renderQuestion(container, qMeta);
+        const mainLayout = container.createEl('div', { cls: 'practice-tab-layout' });
+        
+        // Vertical Progress Bar (VPB) - Now in PracticeView
+        const vpb = mainLayout.createEl('div', { cls: 'practice-vpb' });
+        this.plugin.currentQueue.forEach((q, idx) => {
+            const segment = vpb.createEl('div', { cls: 'vpb-segment' });
+            if (idx === this.plugin.currentQIndex) segment.addClass('is-active');
+            const result = this.plugin.sessionResults.get(q.file.path);
+            if (result === 'correct') segment.addClass('is-correct');
+            else if (result === 'wrong') segment.addClass('is-wrong');
+            
+            segment.onclick = () => {
+                this.plugin.currentQIndex = idx;
+                this.plugin.showingAnswer = false;
+                this.plugin.selectedChoices.clear();
+                this.plugin.saveSession();
+                this.plugin.refreshAllViews();
+            };
+        });
+
+        const questionContent = mainLayout.createEl('div', { cls: 'practice-question-container' });
+        await this.renderQuestion(questionContent, qMeta);
     }
 
     private renderSummary(container: HTMLElement) {
@@ -516,6 +537,21 @@ class PracticeView extends ItemView {
         };
     }
 
+    private async renderHistoryBar(container: HTMLElement, qMeta: QuestionMeta) {
+        const content = await this.app.vault.read(qMeta.file);
+        const historyMatch = content.match(/\| Date \| Selected \| Correct\? \|\n\|---\|---\|---\|\n([\s\S]*?)(?:\n\n|\n$|$)/);
+        
+        const historyBar = container.createEl('div', { cls: 'practice-history-bar' });
+        if (historyMatch) {
+            const rows = historyMatch[1].trim().split('\n');
+            rows.forEach(row => {
+                const block = historyBar.createEl('div', { cls: 'history-block' });
+                if (row.includes('✅')) block.addClass('is-correct');
+                else if (row.includes('❌')) block.addClass('is-wrong');
+            });
+        }
+    }
+
     private async renderQuestion(container: HTMLElement, qMeta: QuestionMeta) {
         const content = await this.app.vault.cachedRead(qMeta.file);
         const lines = content.split('\n');
@@ -537,8 +573,8 @@ class PracticeView extends ItemView {
         headerEl.createEl('span', { text: `Q: ${this.plugin.currentQIndex + 1} / ${this.plugin.currentQueue.length}` });
         headerEl.createEl('span', { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
 
-        const escBtn = headerEl.createEl('button', { text: 'ESC', cls: 'practice-header-esc' });
-        escBtn.onclick = () => this.leaf.detach();
+        // History Bar
+        await this.renderHistoryBar(container, qMeta);
 
         const stemEl = container.createEl('div', { cls: 'practice-stem' });
         await MarkdownRenderer.renderMarkdown(`**[${isSingle ? 'S' : 'M'}]**\n\n${stemText}`, stemEl, qMeta.file.path, this);
@@ -549,7 +585,12 @@ class PracticeView extends ItemView {
             if (this.plugin.selectedChoices.has(choice.char)) row.addClass('practice-selected-choice');
 
             row.onclick = () => {
-                if (this.plugin.showingAnswer) return;
+                if (this.plugin.showingAnswer) {
+                    if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+                        this.plugin.nextQuestion(true);
+                    }
+                    return;
+                }
                 if (isSingle) {
                     const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
                     this.plugin.handleGrading(qMeta, isCorrect, choice.char);
@@ -568,10 +609,44 @@ class PracticeView extends ItemView {
         }
 
         const actions = container.createEl('div', { cls: 'practice-actions' });
+        
+        if (Platform.isMobile && !this.plugin.showingAnswer) {
+            const mobileBtnRow = container.createEl('div', { cls: 'practice-mobile-btns' });
+            this.plugin.activeChoices.forEach(choice => {
+                const btn = mobileBtnRow.createEl('button', { text: choice.char, cls: 'practice-mobile-key' });
+                btn.onclick = () => {
+                    if (this.plugin.showingAnswer) {
+                        if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+                            this.plugin.nextQuestion(true);
+                        }
+                        return;
+                    }
+                    if (isSingle) {
+                        const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
+                        this.plugin.handleGrading(qMeta, isCorrect, choice.char);
+                    } else {
+                        this.toggleChoice(choice.char);
+                    }
+                };
+            });
+        }
+
         if (this.plugin.showingAnswer) {
             container.createEl('div', { text: `Answer: ${qMeta.answer}`, cls: 'practice-answer-reveal' });
-            const nextBtn = actions.createEl('button', { text: 'Next Question =>', cls: 'practice-btn-wrong' });
-            nextBtn.onclick = () => this.plugin.nextQuestion(true);
+            
+            // Re-add Next button for MCQs as requested
+            if (!isSingle) {
+                const nextBtn = actions.createEl('button', { text: 'Next Question =>', cls: 'practice-btn-wrong' });
+                nextBtn.onclick = () => this.plugin.nextQuestion(true);
+
+                const submitBtn = actions.createEl('button', { text: 'Submit (Corrected)', cls: 'practice-btn-submit' });
+                submitBtn.onclick = () => {
+                    const selected = Array.from(this.plugin.selectedChoices).sort().join('');
+                    if (selected.toUpperCase() === qMeta.answer.toUpperCase()) {
+                        this.plugin.nextQuestion(true);
+                    }
+                };
+            }
         } else {
             if (!isSingle) {
                 const submitBtn = actions.createEl('button', { text: 'Submit Answer', cls: 'practice-btn-submit' });

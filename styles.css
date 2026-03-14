@@ -4,38 +4,88 @@
     flex-direction: column;
     height: 100%;
     font-family: var(--font-text);
-    overflow-y: auto;
 }
 
 .practice-view-root {
-    padding: 30px;
-    max-width: 800px;
+    /* Set to relative to anchor the sticky mobile buttons within its scroll context */
+    position: relative;
+    max-width: 1000px;
     margin: 0 auto;
+    overflow: hidden; /* We'll let the internal container scroll */
 }
 
-.practice-control-root {
-    padding: 12px;
+.practice-tab-layout {
+    display: flex;
+    height: 100%;
+    width: 100%;
 }
 
-/* Sidebar Specific */
-.practice-sidebar-toolbar {
+/* Relocated VPB in Practice Tab */
+.practice-vpb {
+    width: 1.2em; /* ~1 character width */
+    height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary-alt);
+    border-right: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
 }
 
-.practice-toolbar-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9em;
-    flex-wrap: wrap;
-}
-
-.practice-toolbar-row select, .practice-toolbar-row input[type="range"] {
+.vpb-segment {
     flex: 1;
+    width: 100%;
+    background-color: var(--background-modifier-border-soft);
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.vpb-segment:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.vpb-segment.is-active {
+    border: 2px solid magenta;
+    z-index: 10;
+}
+
+.vpb-segment.is-correct {
+    background-color: var(--background-modifier-success);
+}
+
+.vpb-segment.is-wrong {
+    background-color: var(--background-modifier-error);
+}
+
+.practice-question-container {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+    position: relative;
+    /* Bottom padding for the sticky mobile buttons - increased to account for raised buttons */
+    padding-bottom: 160px;
+}
+
+/* Question History Bar */
+.practice-history-bar {
+    display: flex;
+    width: 100%;
+    height: 8px;
+    gap: 3px;
+    margin-bottom: 20px;
+}
+
+.history-block {
+    flex: 1;
+    border-radius: 2px;
+    background-color: var(--background-modifier-border);
+}
+
+.history-block.is-correct {
+    background-color: var(--background-modifier-success);
+}
+
+.history-block.is-wrong {
+    background-color: var(--background-modifier-error);
 }
 
 /* Question Content Styles */
@@ -46,23 +96,6 @@
     font-size: 0.9em;
     color: var(--text-muted);
     margin-bottom: 20px;
-}
-
-.practice-header-esc {
-    background: none;
-    border: 1px solid var(--background-modifier-border);
-    padding: 2px 8px;
-    font-size: 0.8em;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.2s;
-}
-
-.practice-header-esc:hover {
-    background-color: var(--background-modifier-error);
-    color: var(--text-on-accent);
-    border-color: var(--background-modifier-error);
 }
 
 .practice-stem {
@@ -126,17 +159,66 @@
     font-weight: 600;
 }
 
-.practice-btn-submit {
+/* Mobile Optimized Layout - Sticky Bottom - Raised to avoid dock */
+.practice-mobile-btns {
+    position: fixed;
+    bottom: 80px; /* Raised from 20px to avoid dock */
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 30px);
+    max-width: 800px;
+    display: flex;
+    gap: 8px;
+    background-color: var(--background-primary);
+    padding: 12px;
+    border-top: 1px solid var(--background-modifier-border);
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+}
+
+.practice-mobile-key {
+    flex: 1;
+    min-height: 60px;
+    font-size: 1.4em;
+    font-weight: bold;
+    border-radius: 12px;
     background-color: var(--interactive-accent);
     color: var(--text-on-accent);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
-.practice-btn-wrong {
-    background-color: var(--interactive-error);
-    color: var(--text-on-accent);
+/* Sidebar & Control Styles */
+.practice-control-root {
+    padding: 12px;
+    overflow-y: auto;
 }
 
-/* Queue List Styles */
+.practice-sidebar-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.practice-toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9em;
+    flex-wrap: wrap;
+}
+
+.practice-toolbar-row select, .practice-toolbar-row input[type="range"] {
+    flex: 1;
+}
+
+.practice-sidebar-queue {
+    flex: 1;
+}
+
+/* Sidebar List Styles */
 .practice-sidebar-queue h4 {
     margin: 20px 0 10px 0;
     font-size: 0.85em;
@@ -158,30 +240,12 @@
     font-size: 0.85em;
     border-bottom: 1px solid var(--background-modifier-border-soft);
     gap: 8px;
-    transition: background-color 0.1s;
-}
-
-.practice-queue-item:hover {
-    background-color: var(--background-modifier-hover);
 }
 
 .practice-queue-item.is-active {
     background-color: var(--background-modifier-hover);
     border: 1px solid magenta;
     border-radius: 4px;
-}
-
-.practice-queue-item.is-correct {
-    border-left: 3px solid var(--background-modifier-success);
-}
-
-.practice-queue-item.is-wrong {
-    border-left: 3px solid var(--background-modifier-error);
-}
-
-.practice-queue-item-idx {
-    opacity: 0.5;
-    font-variant-numeric: tabular-nums;
 }
 
 .practice-queue-item-title {

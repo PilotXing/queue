@@ -417,8 +417,6 @@ var PracticeView = class extends import_obsidian.ItemView {
       return;
     const key = e.key.toLowerCase();
     if (key === "escape") {
-      this.leaf.detach();
-      e.preventDefault();
       return;
     }
     const q = this.plugin.currentQueue[this.plugin.currentQIndex];
@@ -497,7 +495,27 @@ var PracticeView = class extends import_obsidian.ItemView {
       const qMeta = this.plugin.currentQueue[this.plugin.currentQIndex];
       if (!qMeta)
         return;
-      yield this.renderQuestion(container, qMeta);
+      const mainLayout = container.createEl("div", { cls: "practice-tab-layout" });
+      const vpb = mainLayout.createEl("div", { cls: "practice-vpb" });
+      this.plugin.currentQueue.forEach((q, idx) => {
+        const segment = vpb.createEl("div", { cls: "vpb-segment" });
+        if (idx === this.plugin.currentQIndex)
+          segment.addClass("is-active");
+        const result = this.plugin.sessionResults.get(q.file.path);
+        if (result === "correct")
+          segment.addClass("is-correct");
+        else if (result === "wrong")
+          segment.addClass("is-wrong");
+        segment.onclick = () => {
+          this.plugin.currentQIndex = idx;
+          this.plugin.showingAnswer = false;
+          this.plugin.selectedChoices.clear();
+          this.plugin.saveSession();
+          this.plugin.refreshAllViews();
+        };
+      });
+      const questionContent = mainLayout.createEl("div", { cls: "practice-question-container" });
+      yield this.renderQuestion(questionContent, qMeta);
     });
   }
   renderSummary(container) {
@@ -521,6 +539,23 @@ var PracticeView = class extends import_obsidian.ItemView {
       this.plugin.refreshAllViews();
     });
   }
+  renderHistoryBar(container, qMeta) {
+    return __async(this, null, function* () {
+      const content = yield this.app.vault.read(qMeta.file);
+      const historyMatch = content.match(/\| Date \| Selected \| Correct\? \|\n\|---\|---\|---\|\n([\s\S]*?)(?:\n\n|\n$|$)/);
+      const historyBar = container.createEl("div", { cls: "practice-history-bar" });
+      if (historyMatch) {
+        const rows = historyMatch[1].trim().split("\n");
+        rows.forEach((row) => {
+          const block = historyBar.createEl("div", { cls: "history-block" });
+          if (row.includes("\u2705"))
+            block.addClass("is-correct");
+          else if (row.includes("\u274C"))
+            block.addClass("is-wrong");
+        });
+      }
+    });
+  }
   renderQuestion(container, qMeta) {
     return __async(this, null, function* () {
       const content = yield this.app.vault.cachedRead(qMeta.file);
@@ -539,8 +574,7 @@ var PracticeView = class extends import_obsidian.ItemView {
       const headerEl = container.createEl("div", { cls: "practice-header" });
       headerEl.createEl("span", { text: `Q: ${this.plugin.currentQIndex + 1} / ${this.plugin.currentQueue.length}` });
       headerEl.createEl("span", { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
-      const escBtn = headerEl.createEl("button", { text: "ESC", cls: "practice-header-esc" });
-      escBtn.onclick = () => this.leaf.detach();
+      yield this.renderHistoryBar(container, qMeta);
       const stemEl = container.createEl("div", { cls: "practice-stem" });
       yield import_obsidian.MarkdownRenderer.renderMarkdown(`**[${isSingle ? "S" : "M"}]**
 
@@ -551,8 +585,12 @@ ${stemText}`, stemEl, qMeta.file.path, this);
         if (this.plugin.selectedChoices.has(choice.char))
           row.addClass("practice-selected-choice");
         row.onclick = () => {
-          if (this.plugin.showingAnswer)
+          if (this.plugin.showingAnswer) {
+            if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+              this.plugin.nextQuestion(true);
+            }
             return;
+          }
           if (isSingle) {
             const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
             this.plugin.handleGrading(qMeta, isCorrect, choice.char);
@@ -569,10 +607,39 @@ ${stemText}`, stemEl, qMeta.file.path, this);
         }
       }
       const actions = container.createEl("div", { cls: "practice-actions" });
+      if (import_obsidian.Platform.isMobile && !this.plugin.showingAnswer) {
+        const mobileBtnRow = container.createEl("div", { cls: "practice-mobile-btns" });
+        this.plugin.activeChoices.forEach((choice) => {
+          const btn = mobileBtnRow.createEl("button", { text: choice.char, cls: "practice-mobile-key" });
+          btn.onclick = () => {
+            if (this.plugin.showingAnswer) {
+              if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+                this.plugin.nextQuestion(true);
+              }
+              return;
+            }
+            if (isSingle) {
+              const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
+              this.plugin.handleGrading(qMeta, isCorrect, choice.char);
+            } else {
+              this.toggleChoice(choice.char);
+            }
+          };
+        });
+      }
       if (this.plugin.showingAnswer) {
         container.createEl("div", { text: `Answer: ${qMeta.answer}`, cls: "practice-answer-reveal" });
-        const nextBtn = actions.createEl("button", { text: "Next Question =>", cls: "practice-btn-wrong" });
-        nextBtn.onclick = () => this.plugin.nextQuestion(true);
+        if (!isSingle) {
+          const nextBtn = actions.createEl("button", { text: "Next Question =>", cls: "practice-btn-wrong" });
+          nextBtn.onclick = () => this.plugin.nextQuestion(true);
+          const submitBtn = actions.createEl("button", { text: "Submit (Corrected)", cls: "practice-btn-submit" });
+          submitBtn.onclick = () => {
+            const selected = Array.from(this.plugin.selectedChoices).sort().join("");
+            if (selected.toUpperCase() === qMeta.answer.toUpperCase()) {
+              this.plugin.nextQuestion(true);
+            }
+          };
+        }
       } else {
         if (!isSingle) {
           const submitBtn = actions.createEl("button", { text: "Submit Answer", cls: "practice-btn-submit" });
