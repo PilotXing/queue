@@ -712,12 +712,17 @@ var QueueControlView = class extends import_obsidian.ItemView {
       this.plugin.refreshQueue();
     };
     const row2 = parent.createEl("div", { cls: "practice-toolbar-row" });
-    row2.createEl("span", { text: "Max Fam:" });
-    const famSlider = row2.createEl("input", { type: "range" });
+    row2.createEl("span", { text: "Max Familiarity:" });
+    const sliderContainer = row2.createEl("div", { cls: "vertical-slider-container" });
+    const famSlider = sliderContainer.createEl("input", { type: "range", cls: "vertical-slider" });
     famSlider.min = "0";
     famSlider.max = "100";
     famSlider.value = this.plugin.filterFamiliarity.toString();
-    const famLabel = row2.createEl("span", { text: `${this.plugin.filterFamiliarity.toFixed(0)}%` });
+    famSlider.setAttribute("orient", "vertical");
+    const famLabel = sliderContainer.createEl("span", {
+      text: `${this.plugin.filterFamiliarity.toFixed(0)}%`,
+      cls: "vertical-slider-label"
+    });
     famSlider.oninput = () => famLabel.setText(`${famSlider.value}%`);
     famSlider.onchange = () => {
       this.plugin.filterFamiliarity = parseInt(famSlider.value);
@@ -727,41 +732,61 @@ var QueueControlView = class extends import_obsidian.ItemView {
   renderSettings(parent) {
     parent.createEl("h4", { text: "Practice Settings", cls: "sidebar-section-header" });
     const rowOffsets = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
-    rowOffsets.createEl("span", { text: "Insert Postion:", title: "Offsets for re-inserting failed questions (e.g. 3, 10, -1)" });
+    rowOffsets.createEl("span", { text: "Insert Position:", title: "Offsets for re-inserting failed questions" });
     const offsetInput = rowOffsets.createEl("input", { type: "text", cls: "setting-input-text" });
     offsetInput.value = this.plugin.settings.failOffsets;
     offsetInput.onchange = () => __async(this, null, function* () {
       this.plugin.settings.failOffsets = offsetInput.value;
       yield this.plugin.saveSettings();
     });
+    rowOffsets.createEl("div", { text: "e.g. 3, 10, -1 (Use -1 for end)", cls: "setting-instruction" });
     const rowSize = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
-    rowSize.createEl("span", { text: "Font Size (px):" });
-    const sizeInput = rowSize.createEl("input", { type: "number", cls: "setting-input-num" });
-    sizeInput.value = this.plugin.settings.fontSize.toString();
-    sizeInput.onchange = () => __async(this, null, function* () {
-      this.plugin.settings.fontSize = parseInt(sizeInput.value);
-      yield this.plugin.saveSettings();
-      this.plugin.refreshAllViews();
+    rowSize.createEl("span", { text: "Font Size:" });
+    const sizeContainer = rowSize.createEl("div", { cls: "font-size-selector" });
+    const sizes = [12, 14, 16, 18, 20, 24];
+    sizes.forEach((sz) => {
+      const sample = sizeContainer.createEl("span", { text: "A", cls: "font-sample" });
+      sample.style.fontSize = `${sz}px`;
+      if (this.plugin.settings.fontSize === sz)
+        sample.addClass("is-active");
+      sample.onclick = () => __async(this, null, function* () {
+        this.plugin.settings.fontSize = sz;
+        yield this.plugin.saveSettings();
+        this.plugin.refreshAllViews();
+      });
     });
     const rowColor = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
-    rowColor.createEl("span", { text: "Text Color:" });
-    const colorInput = rowColor.createEl("input", { type: "color" });
+    rowColor.createEl("span", { text: "Visual Theme:" });
+    const presetsContainer = rowColor.createEl("div", { cls: "color-presets" });
+    const themes = [
+      { name: "Default", text: "var(--text-normal)", bg: "var(--background-primary)" },
+      { name: "Dark Blue", text: "#e0e0e0", bg: "#1a202c" },
+      { name: "Sepia", text: "#5b4636", bg: "#f4ecd8" },
+      { name: "Matrix", text: "#00ff00", bg: "#000000" },
+      { name: "Clean", text: "#2d3748", bg: "#ffffff" }
+    ];
+    themes.forEach((t) => {
+      const dot = presetsContainer.createEl("div", { cls: "color-preset", title: t.name });
+      dot.style.backgroundColor = t.bg;
+      dot.onclick = () => __async(this, null, function* () {
+        this.plugin.settings.textColor = t.text;
+        this.plugin.settings.bgColor = t.bg;
+        yield this.plugin.saveSettings();
+        this.plugin.refreshAllViews();
+      });
+    });
+    const customRow = rowColor.createEl("div", { cls: "practice-toolbar-row" });
+    customRow.style.marginTop = "8px";
+    const customTextSpan = customRow.createEl("span", { text: "Custom Text:" });
+    customTextSpan.style.fontSize = "0.7em";
+    const colorInput = customRow.createEl("input", { type: "color" });
     colorInput.value = this.plugin.settings.textColor.startsWith("var") ? "#ffffff" : this.plugin.settings.textColor;
     colorInput.onchange = () => __async(this, null, function* () {
       this.plugin.settings.textColor = colorInput.value;
       yield this.plugin.saveSettings();
       this.plugin.refreshAllViews();
     });
-    const rowBg = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
-    rowBg.createEl("span", { text: "Background Color:" });
-    const bgInput = rowBg.createEl("input", { type: "color" });
-    bgInput.value = this.plugin.settings.bgColor.startsWith("var") ? "#1e1e1e" : this.plugin.settings.bgColor;
-    bgInput.onchange = () => __async(this, null, function* () {
-      this.plugin.settings.bgColor = bgInput.value;
-      yield this.plugin.saveSettings();
-      this.plugin.refreshAllViews();
-    });
-    const resetBtn = parent.createEl("button", { text: "Reset Visuals", cls: "sidebar-reset-btn" });
+    const resetBtn = parent.createEl("button", { text: "Restore Defaults", cls: "sidebar-reset-btn" });
     resetBtn.onclick = () => __async(this, null, function* () {
       this.plugin.settings.fontSize = 16;
       this.plugin.settings.bgColor = "var(--background-primary)";

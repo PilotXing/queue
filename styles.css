@@ -286,6 +286,81 @@
     color: white;
 }
 
+/* Vertical Fam Slider */
+.vertical-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 120px;
+    padding: 10px 0;
+}
+
+.vertical-slider {
+    appearance: slider-vertical;
+    width: 12px;
+    height: 100%;
+    cursor: pointer;
+}
+
+/* Font Size Selector Row */
+.font-size-selector {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    background-color: var(--background-secondary);
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.font-sample {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.font-sample:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.font-sample.is-active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-weight: bold;
+}
+
+/* Color Presets */
+.color-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.color-preset {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid var(--background-modifier-border);
+    transition: transform 0.1s, border-color 0.2s;
+}
+
+.color-preset:hover {
+    transform: scale(1.1);
+    border-color: var(--interactive-accent);
+}
+
+.setting-instruction {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 2px;
+}
+
 /* Sidebar List Styles */
 .practice-queue-list {
     display: flex;
