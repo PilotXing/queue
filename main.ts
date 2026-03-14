@@ -570,7 +570,15 @@ class PracticeView extends ItemView {
         const isSingle = qMeta.answer.length <= 1;
 
         const firstChoiceIndex = lines.findIndex(l => /^- [A-Z] /.test(l));
-        let stemText = lines.slice(lines.findIndex(l => l.startsWith('# ')) + 1, firstChoiceIndex).join('\n').trim();
+        const firstHeaderIndex = lines.findIndex(l => l.startsWith('# '));
+        
+        let stemText = "";
+        if (firstHeaderIndex !== -1 && firstHeaderIndex < firstChoiceIndex) {
+            // Include the header line content and everything until choices
+            stemText = lines.slice(firstHeaderIndex, firstChoiceIndex).join('\n').trim();
+            // Remove the leading '# ' from the first line for display if preferred, 
+            // but usually we want to render it as markdown.
+        }
 
         this.plugin.activeChoices = [];
         const choicesRegex = /^- ([A-Z]) (.*)$/gm;

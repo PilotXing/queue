@@ -568,7 +568,11 @@ var PracticeView = class extends import_obsidian.ItemView {
       const lines = content.split("\n");
       const isSingle = qMeta.answer.length <= 1;
       const firstChoiceIndex = lines.findIndex((l) => /^- [A-Z] /.test(l));
-      let stemText = lines.slice(lines.findIndex((l) => l.startsWith("# ")) + 1, firstChoiceIndex).join("\n").trim();
+      const firstHeaderIndex = lines.findIndex((l) => l.startsWith("# "));
+      let stemText = "";
+      if (firstHeaderIndex !== -1 && firstHeaderIndex < firstChoiceIndex) {
+        stemText = lines.slice(firstHeaderIndex, firstChoiceIndex).join("\n").trim();
+      }
       this.plugin.activeChoices = [];
       const choicesRegex = /^- ([A-Z]) (.*)$/gm;
       let match;
