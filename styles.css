@@ -26,7 +26,7 @@
     box-shadow: var(--md-shadow-1);
     border: none !important;
     transition: box-shadow 0.2s, transform 0.2s;
-    margin-bottom: 16px;
+    margin-bottom: 8px; /* Reduced from 16px */
 }
 
 .material-card:hover {
@@ -89,7 +89,7 @@
 
 .practice-question-container {
     flex: 1;
-    padding: 32px;
+    padding: 16px 24px; /* Reduced from 32px */
     overflow-y: auto;
     position: relative;
     padding-bottom: 180px;
@@ -121,7 +121,7 @@
     align-items: center;
     font-size: 0.85em;
     color: var(--text-muted);
-    margin-bottom: 24px;
+    margin-bottom: 12px; /* Reduced from 24px */
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
@@ -129,18 +129,18 @@
 .practice-stem {
     font-size: 1.25em;
     font-weight: 500;
-    padding: 24px;
-    line-height: 1.6;
+    padding: 12px 20px; /* Reduced */
+    line-height: 1.4; /* Reduced from 1.6 */
 }
 
 .practice-choices {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px; /* Reduced from 16px */
 }
 
 .practice-choice {
-    padding: 16px 24px;
+    padding: 8px 16px; /* Reduced from 16px 24px */
     display: flex;
     align-items: center;
     cursor: pointer;
@@ -245,14 +245,14 @@
 .practice-sidebar-toolbar, .practice-sidebar-settings {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 10px; /* Reduced from 16px */
+    margin-bottom: 16px; /* Reduced from 24px */
 }
 
 .practice-toolbar-row, .practice-sidebar-setting-row {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px; /* Reduced from 6px */
 }
 
 .practice-toolbar-row span, .practice-sidebar-setting-row span {
