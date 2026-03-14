@@ -566,9 +566,7 @@ var PracticeView = class extends import_obsidian.ItemView {
     return __async(this, null, function* () {
       const content = yield this.app.vault.cachedRead(qMeta.file);
       const lines = content.split("\n");
-      const typeMatch = content.match(/^# (.*)$/m);
-      const typeStr = typeMatch ? typeMatch[1].trim() : "Question";
-      const isSingle = typeStr === "\u5355\u9009\u9898" && qMeta.answer.length <= 1;
+      const isSingle = qMeta.answer.length <= 1;
       const firstChoiceIndex = lines.findIndex((l) => /^- \*\*[A-Z]\.\*\*/.test(l));
       let stemText = lines.slice(lines.findIndex((l) => l.startsWith("# ")) + 1, firstChoiceIndex).join("\n").trim();
       this.plugin.activeChoices = [];
@@ -582,9 +580,7 @@ var PracticeView = class extends import_obsidian.ItemView {
       headerEl.createEl("span", { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
       yield this.renderHistoryBar(container, qMeta);
       const stemEl = container.createEl("div", { cls: "practice-stem material-card" });
-      yield import_obsidian.MarkdownRenderer.renderMarkdown(`**[${isSingle ? "S" : "M"}]**
-
-${stemText}`, stemEl, qMeta.file.path, this);
+      yield import_obsidian.MarkdownRenderer.renderMarkdown(stemText, stemEl, qMeta.file.path, this);
       const choicesEl = container.createEl("div", { cls: "practice-choices" });
       for (const choice of this.plugin.activeChoices) {
         const row = choicesEl.createEl("div", { cls: "practice-choice material-card" });

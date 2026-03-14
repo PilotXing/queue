@@ -567,9 +567,7 @@ class PracticeView extends ItemView {
     private async renderQuestion(container: HTMLElement, qMeta: QuestionMeta) {
         const content = await this.app.vault.cachedRead(qMeta.file);
         const lines = content.split('\n');
-        const typeMatch = content.match(/^# (.*)$/m);
-        const typeStr = typeMatch ? typeMatch[1].trim() : "Question";
-        const isSingle = (typeStr === '单选题' && qMeta.answer.length <= 1);
+        const isSingle = qMeta.answer.length <= 1;
 
         const firstChoiceIndex = lines.findIndex(l => /^- \*\*[A-Z]\.\*\*/.test(l));
         let stemText = lines.slice(lines.findIndex(l => l.startsWith('# ')) + 1, firstChoiceIndex).join('\n').trim();
@@ -589,7 +587,7 @@ class PracticeView extends ItemView {
         await this.renderHistoryBar(container, qMeta);
 
         const stemEl = container.createEl('div', { cls: 'practice-stem material-card' });
-        await MarkdownRenderer.renderMarkdown(`**[${isSingle ? 'S' : 'M'}]**\n\n${stemText}`, stemEl, qMeta.file.path, this);
+        await MarkdownRenderer.renderMarkdown(stemText, stemEl, qMeta.file.path, this);
 
         const choicesEl = container.createEl('div', { cls: 'practice-choices' });
         for (const choice of this.plugin.activeChoices) {
