@@ -18,50 +18,6 @@ A powerful spaced repetition and practice plugin for Obsidian, designed with Goo
     - **Question History Bar**: A trial-by-trial colored history bar at the top of each question shows your past performance.
 - **In-Sidebar Settings**: Adjust font size, text colors, background colors, and re-insertion offsets directly from the control sidebar.
 
-## File Templates
-
-### Question File (.md)
-Questions are detected by the `#q` tag. Include options as a markdown list starting with `**A.**`, `**B.**`, etc.
-
-```markdown
----
-category: Navigation
-id: 101
-familiarity: 50
-answer: A
-tags: ["q"]
----
-# 单选题 (or 多选题 for MCQ)
-What is the primary color of Material Design?
-
-- **A.** Primary 600
-- **B.** Signal Red
-- **C.** Neon Green
-
-## Practice History
-...
-```
-
-### Practice Session File (.md)
-Generated in the `Practice_Sessions/` folder. Opening these files resumes the practice.
-
-```markdown
----
-type: practice_session
-currentIndex: 2
-isFinished: false
-category: Navigation
-timestamp: 2026-03-14_13-00-00
----
-# Autosaved Session - Navigation
-
-#practice_resume
-
-## Queue
-[[Question 1]]
-[[Question 2]]
-```
-
 ## Usage
 
 1. **Start Practice**: Click the check-square ribbon icon or use the `Open Practice View` command.
@@ -70,6 +26,69 @@ timestamp: 2026-03-14_13-00-00
     - **Keyboard (Desktop)**: Use `A-F` or `1-6` to select, `Enter` to submit/next, `S` to show answer, and `N` to skip/master.
     - **Touch (Mobile)**: Use the ABCD... buttons at the bottom for easy selection and navigation.
 4. **Summary**: After finishing the queue, view your session stats and choose to restart or create a new session.
+
+## Data Structure Templates
+
+### 1. Question File Template
+Questions are standard Markdown files with specific frontmatter and headings.
+
+**Template:**
+```markdown
+---
+tags: [q]
+id: [Unique ID]
+category: [Category Name]
+familiarity: [0-100]
+answer: [Single letter or MCQ string like 'BD']
+---
+# [单选题 or 多选题]
+
+[Stem text...]
+
+- **A.** [Choice A]
+- **B.** [Choice B]
+- **C.** [Choice C]
+- **D.** [Choice D]
+```
+
+**Example:**
+```markdown
+---
+tags: [q]
+id: 101
+category: Aviation
+familiarity: 50
+answer: B
+---
+# 单选题
+
+不要依赖目视机体结冰为标志来接通发动机防冰，应使用 (  ) 来作为标准。
+
+- **A.** 温度
+- **B.** 露点温度
+- **C.** 可见水汽
+```
+
+### 2. Practice Session Template
+Session files are automatically generated in the `Practice_Sessions/` folder to save your progress.
+
+**Example:**
+```markdown
+---
+type: practice_session
+currentIndex: 3
+isFinished: false
+category: Aviation
+timestamp: 2026-03-14_13-00-00
+---
+# Autosaved Session - Aviation
+
+#practice_resume
+
+## Queue
+[[Questions/Q101|Q101]]
+[[Questions/Q102|Q102]]
+```
 
 ## Installation
 
