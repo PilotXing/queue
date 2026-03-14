@@ -1,15 +1,20 @@
-# npm dependencies
+# Build artifacts
+main.js
+dist/
+build/
+
+# Dependencies
 node_modules/
 
-# Local Obsidian plugin settings/data
-data.json
-
-# IDE / Editor folders
+# OS/IDE
+.DS_Store
 .vscode/
 .idea/
+*.swp
+*.log
 
-# OS generated files
-.DS_Store
-Thumbs.db
-
+# Personal/Vault specific
+data.json
+.obsidian/
+Practice_Sessions/
 questions.json
