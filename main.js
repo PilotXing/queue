@@ -50,7 +50,10 @@ var VIEW_TYPE_CONTROL = "queue-control-view";
 var DEFAULT_SETTINGS = {
   failOffsets: "3, 10, -1",
   savedQueuePaths: [],
-  savedIndex: 0
+  savedIndex: 0,
+  fontSize: 16,
+  textColor: "var(--text-normal)",
+  bgColor: "var(--background-primary)"
 };
 var PracticePlugin = class extends import_obsidian.Plugin {
   constructor() {
@@ -515,6 +518,9 @@ var PracticeView = class extends import_obsidian.ItemView {
         };
       });
       const questionContent = mainLayout.createEl("div", { cls: "practice-question-container" });
+      questionContent.style.fontSize = `${this.plugin.settings.fontSize}px`;
+      questionContent.style.color = this.plugin.settings.textColor;
+      questionContent.style.backgroundColor = this.plugin.settings.bgColor;
       yield this.renderQuestion(questionContent, qMeta);
     });
   }
@@ -575,13 +581,13 @@ var PracticeView = class extends import_obsidian.ItemView {
       headerEl.createEl("span", { text: `Q: ${this.plugin.currentQIndex + 1} / ${this.plugin.currentQueue.length}` });
       headerEl.createEl("span", { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
       yield this.renderHistoryBar(container, qMeta);
-      const stemEl = container.createEl("div", { cls: "practice-stem" });
+      const stemEl = container.createEl("div", { cls: "practice-stem material-card" });
       yield import_obsidian.MarkdownRenderer.renderMarkdown(`**[${isSingle ? "S" : "M"}]**
 
 ${stemText}`, stemEl, qMeta.file.path, this);
       const choicesEl = container.createEl("div", { cls: "practice-choices" });
       for (const choice of this.plugin.activeChoices) {
-        const row = choicesEl.createEl("div", { cls: "practice-choice" });
+        const row = choicesEl.createEl("div", { cls: "practice-choice material-card" });
         if (this.plugin.selectedChoices.has(choice.char))
           row.addClass("practice-selected-choice");
         row.onclick = () => {
@@ -604,6 +610,7 @@ ${stemText}`, stemEl, qMeta.file.path, this);
         yield import_obsidian.MarkdownRenderer.renderMarkdown(choice.text, row, qMeta.file.path, this);
         if (this.plugin.showingAnswer && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
           row.addClass("practice-correct-choice");
+          row.addClass("material-card-elevated");
         }
       }
       const actions = container.createEl("div", { cls: "practice-actions" });
@@ -611,6 +618,8 @@ ${stemText}`, stemEl, qMeta.file.path, this);
         const mobileBtnRow = container.createEl("div", { cls: "practice-mobile-btns" });
         this.plugin.activeChoices.forEach((choice) => {
           const btn = mobileBtnRow.createEl("button", { text: choice.char, cls: "practice-mobile-key" });
+          if (this.plugin.selectedChoices.has(choice.char))
+            btn.addClass("is-selected");
           btn.onclick = () => {
             if (this.plugin.showingAnswer) {
               if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
@@ -682,11 +691,14 @@ var QueueControlView = class extends import_obsidian.ItemView {
       container.addClass("practice-control-root");
       const toolbarEl = container.createEl("div", { cls: "practice-sidebar-toolbar" });
       this.renderToolbar(toolbarEl);
+      const settingsEl = container.createEl("div", { cls: "practice-sidebar-settings" });
+      this.renderSettings(settingsEl);
       const listEl = container.createEl("div", { cls: "practice-sidebar-queue" });
       this.renderQueueList(listEl);
     });
   }
   renderToolbar(parent) {
+    parent.createEl("h4", { text: "Filters", cls: "sidebar-section-header" });
     const row1 = parent.createEl("div", { cls: "practice-toolbar-row" });
     row1.createEl("span", { text: "Category:" });
     const catSelect = row1.createEl("select");
@@ -712,8 +724,54 @@ var QueueControlView = class extends import_obsidian.ItemView {
       this.plugin.refreshQueue();
     };
   }
+  renderSettings(parent) {
+    parent.createEl("h4", { text: "Practice Settings", cls: "sidebar-section-header" });
+    const rowOffsets = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
+    rowOffsets.createEl("span", { text: "Insert Postion:", title: "Offsets for re-inserting failed questions (e.g. 3, 10, -1)" });
+    const offsetInput = rowOffsets.createEl("input", { type: "text", cls: "setting-input-text" });
+    offsetInput.value = this.plugin.settings.failOffsets;
+    offsetInput.onchange = () => __async(this, null, function* () {
+      this.plugin.settings.failOffsets = offsetInput.value;
+      yield this.plugin.saveSettings();
+    });
+    const rowSize = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
+    rowSize.createEl("span", { text: "Font Size (px):" });
+    const sizeInput = rowSize.createEl("input", { type: "number", cls: "setting-input-num" });
+    sizeInput.value = this.plugin.settings.fontSize.toString();
+    sizeInput.onchange = () => __async(this, null, function* () {
+      this.plugin.settings.fontSize = parseInt(sizeInput.value);
+      yield this.plugin.saveSettings();
+      this.plugin.refreshAllViews();
+    });
+    const rowColor = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
+    rowColor.createEl("span", { text: "Text Color:" });
+    const colorInput = rowColor.createEl("input", { type: "color" });
+    colorInput.value = this.plugin.settings.textColor.startsWith("var") ? "#ffffff" : this.plugin.settings.textColor;
+    colorInput.onchange = () => __async(this, null, function* () {
+      this.plugin.settings.textColor = colorInput.value;
+      yield this.plugin.saveSettings();
+      this.plugin.refreshAllViews();
+    });
+    const rowBg = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
+    rowBg.createEl("span", { text: "Background Color:" });
+    const bgInput = rowBg.createEl("input", { type: "color" });
+    bgInput.value = this.plugin.settings.bgColor.startsWith("var") ? "#1e1e1e" : this.plugin.settings.bgColor;
+    bgInput.onchange = () => __async(this, null, function* () {
+      this.plugin.settings.bgColor = bgInput.value;
+      yield this.plugin.saveSettings();
+      this.plugin.refreshAllViews();
+    });
+    const resetBtn = parent.createEl("button", { text: "Reset Visuals", cls: "sidebar-reset-btn" });
+    resetBtn.onclick = () => __async(this, null, function* () {
+      this.plugin.settings.fontSize = 16;
+      this.plugin.settings.bgColor = "var(--background-primary)";
+      this.plugin.settings.textColor = "var(--text-normal)";
+      yield this.plugin.saveSettings();
+      this.plugin.refreshAllViews();
+    });
+  }
   renderQueueList(parent) {
-    parent.createEl("h4", { text: "Queue" });
+    parent.createEl("h4", { text: "Queue", cls: "sidebar-section-header" });
     const list = parent.createEl("div", { cls: "practice-queue-list" });
     this.plugin.currentQueue.forEach((q, idx) => {
       const item = list.createEl("div", { cls: "practice-queue-item" });
@@ -751,11 +809,8 @@ var PracticeSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Queue Settings" });
-    new import_obsidian.Setting(containerEl).setName("Fail Re-insertion Offsets").addText((text) => text.setValue(this.plugin.settings.failOffsets).onChange((value) => __async(this, null, function* () {
-      this.plugin.settings.failOffsets = value;
-      yield this.plugin.saveSettings();
-    })));
+    containerEl.createEl("h2", { text: "Practice Plugin Settings" });
+    containerEl.createEl("p", { text: "All practice settings (filters, re-insertion offsets, and visual preferences) are now located in the Practice Control sidebar for easier access during practice sessions." });
   }
 };
 // Annotate the CommonJS export names for ESM import in node:
