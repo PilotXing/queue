@@ -68,6 +68,48 @@
     --flat-primary: #a37b5d;
 }
 
+/* Dracula Theme */
+.theme-dracula {
+    --flat-bg: #282a36;
+    --flat-surface: #44475a;
+    --flat-surface-alt: #6272a4;
+    --flat-text: #f8f8f2;
+    --flat-text-muted: #9e9ea8;
+    --flat-border: #6272a4;
+    --flat-primary: #bd93f9;
+    --flat-success: #50fa7b;
+    --flat-error: #ff5555;
+    --flat-warning: #f1fa8c;
+}
+
+/* Nord Theme */
+.theme-nord {
+    --flat-bg: #2e3440;
+    --flat-surface: #3b4252;
+    --flat-surface-alt: #434c5e;
+    --flat-text: #eceff4;
+    --flat-text-muted: #d8dee9;
+    --flat-border: #4c566a;
+    --flat-primary: #88c0d0;
+    --flat-success: #a3be8c;
+    --flat-error: #bf616a;
+    --flat-warning: #ebcb8b;
+}
+
+/* Gruvbox Dark Theme */
+.theme-gruvbox {
+    --flat-bg: #282828;
+    --flat-surface: #3c3836;
+    --flat-surface-alt: #504945;
+    --flat-text: #ebdbb2;
+    --flat-text-muted: #a89984;
+    --flat-border: #665c54;
+    --flat-primary: #83a598;
+    --flat-success: #b8bb26;
+    --flat-error: #fb4934;
+    --flat-warning: #fabd2f;
+}
+
 /* Material overrides for flat design */
 .flat-card {
     background-color: var(--flat-surface);
@@ -133,10 +175,10 @@
 
 .practice-question-container {
     flex: 1;
-    padding: 32px;
+    padding: 16px;
     overflow-y: auto;
     position: relative;
-    padding-bottom: 180px;
+    padding-bottom: 120px;
     background-color: var(--flat-bg);
     scroll-behavior: smooth;
 }
@@ -181,8 +223,8 @@
 
 .practice-stem {
     font-weight: 600;
-    padding: 24px 32px;
-    margin-bottom: 24px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
     line-height: 1.4;
     border-radius: var(--flat-radius);
     background-color: var(--flat-surface);
@@ -192,11 +234,11 @@
 .practice-choices {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .practice-choice {
-    padding: 8px 16px;
+    padding: 6px 12px;
     margin: 0;
     display: flex;
     align-items: center;

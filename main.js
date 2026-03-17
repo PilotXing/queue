@@ -814,11 +814,18 @@ var PracticeView = class extends import_obsidian2.ItemView {
         }));
       }
     } else {
-      if (!isSingle && !import_obsidian2.Platform.isMobile) {
+      if (!isSingle) {
         this.actionButtons.push(mountDraggable("btn_submit", "Submit Answer", "practice-btn-submit", () => {
           this.gradeMultipleChoice();
         }));
       }
+      this.actionButtons.push(mountDraggable("btn_show", "(S)how Answer", "practice-btn-show", () => {
+        this.plugin.session.showingAnswer = true;
+        this.plugin.refreshAllViews();
+      }));
+      this.actionButtons.push(mountDraggable("btn_skip", "Skip (N)", "practice-btn-skip", () => {
+        this.setMastered(qMeta);
+      }));
     }
     const applyDefaultLayout = () => {
       const containerWidth = container.offsetWidth || 800;
@@ -1000,6 +1007,9 @@ var QueueControlView = class extends import_obsidian3.ItemView {
     const themes = [
       { id: "default", name: "Default", text: "var(--text-normal)", bg: "var(--background-primary)" },
       { id: "dark-blue", name: "Dark Blue", text: "#e2e8f0", bg: "#1a202c" },
+      { id: "dracula", name: "Dracula", text: "#f8f8f2", bg: "#282a36" },
+      { id: "nord", name: "Nord", text: "#eceff4", bg: "#2e3440" },
+      { id: "gruvbox", name: "Gruvbox", text: "#fbf1c7", bg: "#282828" },
       { id: "sepia", name: "Sepia", text: "#5b4636", bg: "#f4ecd8" },
       { id: "solarized-dark", name: "Solarized Dark", text: "#839496", bg: "#002b36" },
       { id: "solarized-light", name: "Solarized Light", text: "#657b83", bg: "#fdf6e3" },

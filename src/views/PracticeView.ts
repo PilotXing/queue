@@ -392,12 +392,20 @@ export class PracticeView extends ItemView {
                 }));
             }
         } else {
-            if (!isSingle && !Platform.isMobile) {
-                // Submit button only on desktop. Swept up on mobile.
+            if (!isSingle) {
                 this.actionButtons.push(mountDraggable('btn_submit', 'Submit Answer', 'practice-btn-submit', () => {
                     this.gradeMultipleChoice();
                 }));
             }
+            
+            this.actionButtons.push(mountDraggable('btn_show', '(S)how Answer', 'practice-btn-show', () => {
+                this.plugin.session.showingAnswer = true;
+                this.plugin.refreshAllViews();
+            }));
+
+            this.actionButtons.push(mountDraggable('btn_skip', 'Skip (N)', 'practice-btn-skip', () => {
+                this.setMastered(qMeta);
+            }));
         }
 
         // Apply fallback positions to unpositioned buttons sequentially
