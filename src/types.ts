@@ -26,6 +26,7 @@ export interface PracticeSettings {
     fontSize: number;
     textColor: string;
     bgColor: string;
+    theme: string;
     unlockButtonLayout: boolean;
     buttonLayouts: ButtonLayouts;
 }
@@ -37,6 +38,7 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
     fontSize: 16,
     textColor: "var(--text-normal)",
     bgColor: "var(--background-primary)",
+    theme: "default",
     unlockButtonLayout: false,
     buttonLayouts: {}
 };

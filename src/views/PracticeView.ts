@@ -6,6 +6,11 @@ import { DraggableButton } from '../components/DraggableButton';
 export class PracticeView extends ItemView {
     plugin: PracticePlugin;
     boundKeydownHandler: (e: KeyboardEvent) => void;
+    boundTouchStartHandler: (e: TouchEvent) => void;
+    boundTouchEndHandler: (e: TouchEvent) => void;
+    
+    private touchStartY = 0;
+    private touchStartTime = 0;
 
     // Draggable Instances
     private choiceButtons: DraggableButton[] = [];
@@ -15,6 +20,8 @@ export class PracticeView extends ItemView {
         super(leaf);
         this.plugin = plugin;
         this.boundKeydownHandler = this.onKeydown.bind(this);
+        this.boundTouchStartHandler = this.onTouchStart.bind(this);
+        this.boundTouchEndHandler = this.onTouchEnd.bind(this);
     }
 
     getViewType() { return VIEW_TYPE_PRACTICE; }
@@ -23,11 +30,15 @@ export class PracticeView extends ItemView {
 
     async onOpen() {
         document.addEventListener('keydown', this.boundKeydownHandler);
+        this.contentEl.addEventListener('touchstart', this.boundTouchStartHandler, { passive: true });
+        this.contentEl.addEventListener('touchend', this.boundTouchEndHandler, { passive: true });
         await this.render();
     }
 
     async onClose() {
         document.removeEventListener('keydown', this.boundKeydownHandler);
+        this.contentEl.removeEventListener('touchstart', this.boundTouchStartHandler);
+        this.contentEl.removeEventListener('touchend', this.boundTouchEndHandler);
     }
 
     onKeydown(e: KeyboardEvent) {
@@ -82,6 +93,49 @@ export class PracticeView extends ItemView {
         }
     }
 
+    private onTouchStart(e: TouchEvent) {
+        if (e.changedTouches.length > 0) {
+            this.touchStartY = e.changedTouches[0].screenY;
+            this.touchStartTime = Date.now();
+        }
+    }
+
+    private onTouchEnd(e: TouchEvent) {
+        if (e.changedTouches.length > 0) {
+            const touchEndY = e.changedTouches[0].screenY;
+            const timeDiff = Date.now() - this.touchStartTime;
+            const distance = this.touchStartY - touchEndY;
+            
+            // Fast swipe up (>50px in <400ms)
+            if (distance > 50 && timeDiff < 400) { 
+                this.handleSwipeUp();
+            }
+        }
+    }
+
+    private handleSwipeUp() {
+        if (this.plugin.buttonManager.isUnlocked) return;
+        if (this.plugin.session.isFinished) return;
+        
+        const qMeta = this.plugin.session.currentQueue[this.plugin.session.currentQIndex];
+        if (!qMeta) return;
+
+        const isSingle = qMeta.answer.length <= 1;
+
+        if (this.plugin.session.showingAnswer) {
+            this.plugin.session.nextQuestion(true);
+        } else {
+            if (isSingle) {
+                this.plugin.session.showingAnswer = true;
+                this.plugin.refreshAllViews();
+            } else {
+                if (this.plugin.session.selectedChoices.size > 0) {
+                    this.gradeMultipleChoice();
+                }
+            }
+        }
+    }
+
     private toggleChoice(char: string) {
         if (this.plugin.buttonManager.isUnlocked) return;
         
@@ -115,6 +169,10 @@ export class PracticeView extends ItemView {
         const container = this.contentEl;
         container.empty();
         container.addClass('practice-view-root');
+        
+        // Apply theme class
+        container.removeClass('theme-solarized-dark', 'theme-solarized-light', 'theme-dark-blue', 'theme-sepia', 'theme-clean', 'theme-default');
+        container.addClass(`theme-${this.plugin.settings.theme}`);
 
         if (this.plugin.buttonManager.isUnlocked) {
             const banner = container.createEl('div', { cls: 'practice-edit-banner' });
@@ -162,6 +220,7 @@ export class PracticeView extends ItemView {
         questionContent.style.color = this.plugin.settings.textColor;
         questionContent.style.backgroundColor = this.plugin.settings.bgColor;
 
+        this.renderCurve(questionContent);
         await this.renderQuestion(questionContent, qMeta);
     }
 
@@ -287,31 +346,34 @@ export class PracticeView extends ItemView {
         const mountDraggable = (id: string, text: string, cls: string, onClick: () => void) => {
             const btn = new DraggableButton(floatingCanvas, this.plugin.buttonManager, id, text, `practice-flat-btn ${cls}`, onClick);
             btn.containerEl.style.pointerEvents = 'auto'; // allow dragging/clicking
+            btn.containerEl.addClass('is-initializing'); // Hide initially
             return btn;
         };
 
-        // Render ABCD buttons
+        // Render ABCD buttons (Mobile only)
         this.choiceButtons = [];
-        this.plugin.session.activeChoices.forEach((choice, index) => {
-            const baseId = `btn_choice_${choice.char}`;
-            const clsList = this.plugin.session.selectedChoices.has(choice.char) ? 'is-selected practice-btn-choice' : 'practice-btn-choice';
-            
-            const btn = mountDraggable(baseId, choice.char, clsList, () => {
-                if (this.plugin.session.showingAnswer) {
-                    if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
-                        this.plugin.session.nextQuestion(true);
+        if (Platform.isMobile) {
+            this.plugin.session.activeChoices.forEach((choice) => {
+                const baseId = `btn_choice_${choice.char}`;
+                const clsList = this.plugin.session.selectedChoices.has(choice.char) ? 'is-selected practice-btn-choice' : 'practice-btn-choice';
+                
+                const btn = mountDraggable(baseId, choice.char, clsList, () => {
+                    if (this.plugin.session.showingAnswer) {
+                        if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+                            this.plugin.session.nextQuestion(true);
+                        }
+                        return;
                     }
-                    return;
-                }
-                if (isSingle) {
-                    const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
-                    this.plugin.session.handleGrading(qMeta, isCorrect, choice.char);
-                } else {
-                    this.toggleChoice(choice.char);
-                }
+                    if (isSingle) {
+                        const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
+                        this.plugin.session.handleGrading(qMeta, isCorrect, choice.char);
+                    } else {
+                        this.toggleChoice(choice.char);
+                    }
+                });
+                this.choiceButtons.push(btn);
             });
-            this.choiceButtons.push(btn);
-        });
+        }
 
         // Render Action Buttons
         this.actionButtons = [];
@@ -330,38 +392,108 @@ export class PracticeView extends ItemView {
                 }));
             }
         } else {
-            if (!isSingle) {
+            if (!isSingle && !Platform.isMobile) {
+                // Submit button only on desktop. Swept up on mobile.
                 this.actionButtons.push(mountDraggable('btn_submit', 'Submit Answer', 'practice-btn-submit', () => {
                     this.gradeMultipleChoice();
                 }));
             }
-            
-            this.actionButtons.push(mountDraggable('btn_show', '(S)how Answer', 'practice-btn-show', () => {
-                this.plugin.session.showingAnswer = true;
-                this.plugin.refreshAllViews();
-            }));
-
-            this.actionButtons.push(mountDraggable('btn_skip', 'Skip (N)', 'practice-btn-skip', () => {
-                this.setMastered(qMeta);
-            }));
         }
 
         // Apply fallback positions to unpositioned buttons sequentially
-        let unpositionedOffset = 0;
+        const applyDefaultLayout = () => {
+            const containerWidth = container.offsetWidth || 800;
+            const containerHeight = container.offsetHeight || 600;
+            
+            const allBtns = this.choiceButtons.concat(this.actionButtons);
+            allBtns.forEach(btn => {
+                btn.containerEl.addClass('no-transition');
+            });
 
-        const defaultPositions = (btnElements: DraggableButton[], startX: number, y: number) => {
-            btnElements.forEach((btn, idx) => {
-                // If it wasn't saved yet, position it nicely at the bottom right.
+            // Reposition ABCDs (Mobile only) - Place ABOVE action buttons
+            const choiceY = containerHeight - 110;
+            let currentX = containerWidth - 30; 
+            this.choiceButtons.forEach((btn) => {
                 if (!this.plugin.buttonManager.getPosition(btn['buttonId'])) {
-                    // This creates a pseudo layout without saving it until the user drags it.
-                    btn.containerEl.style.transform = `translate(${startX + unpositionedOffset}px, ${y}px)`;
-                    unpositionedOffset += btn.containerEl.offsetWidth + 10 || 50; 
+                    const btnWidth = btn.containerEl.offsetWidth || 40;
+                    btn.containerEl.style.transform = `translate(${currentX - btnWidth}px, ${choiceY}px)`;
+                    currentX -= btnWidth + 12;
                 }
             });
+
+            // Reposition Action buttons - Place at the VERY bottom
+            const actionY = containerHeight - 60;
+            currentX = containerWidth - 30; 
+            this.actionButtons.slice().reverse().forEach((btn) => {
+                if (!this.plugin.buttonManager.getPosition(btn['buttonId'])) {
+                    const btnWidth = btn.containerEl.offsetWidth || 110;
+                    btn.containerEl.style.transform = `translate(${currentX - btnWidth}px, ${actionY}px)`;
+                    currentX -= btnWidth + 12;
+                }
+            });
+
+            // Final reveal
+            setTimeout(() => {
+                allBtns.forEach(btn => {
+                    btn.containerEl.removeClass('is-initializing');
+                    btn.containerEl.removeClass('no-transition');
+                });
+            }, 50);
         };
 
-        // For first render we just let them overlap unless they are saved.
-        // A full automatic layout logic could be complex, we rely on the absolute (0,0) fallback
-        // until saved by the user.
+        setTimeout(applyDefaultLayout, 250);
+    }
+
+    private renderCurve(container: HTMLElement) {
+        const history = this.plugin.sessionManager.currentQueue.map((q: any) => q.familiarity);
+        if (history.length === 0) return;
+
+        const curveContainer = container.createEl('div', { cls: 'familiarity-curve-root' });
+        const canvas = curveContainer.createEl('canvas');
+        canvas.width = curveContainer.offsetWidth || 800;
+        canvas.height = 60;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const rootStyle = getComputedStyle(curveContainer);
+        const primaryColor = rootStyle.getPropertyValue('--flat-primary').trim() || '#268bd2';
+        
+        // Draw Area Gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, primaryColor + '44'); // 25% opacity
+        gradient.addColorStop(1, primaryColor + '00'); // Transparent
+
+        const step = canvas.width / (history.length - 1 || 1);
+        
+        // Fill Area
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+        history.forEach((fam: number, i: number) => {
+            const x = i * step;
+            const y = canvas.height - (fam / 100 * canvas.height);
+            ctx.lineTo(x, y);
+        });
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Draw Glowing Line
+        ctx.beginPath();
+        ctx.strokeStyle = primaryColor;
+        ctx.lineWidth = 2.5;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = primaryColor;
+        
+        history.forEach((fam: number, i: number) => {
+            const x = i * step;
+            const y = canvas.height - (fam / 100 * canvas.height);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Markers for current question and milestones
+        ctx.shadowBlur = 0;
     }
 }

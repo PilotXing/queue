@@ -21,6 +21,10 @@ export class QueueControlView extends ItemView {
         container.empty();
         container.addClass('practice-control-root');
 
+        // Apply theme class
+        container.removeClass('theme-solarized-dark', 'theme-solarized-light', 'theme-dark-blue', 'theme-sepia', 'theme-clean', 'theme-default');
+        container.addClass(`theme-${this.plugin.settings.theme}`);
+
         const toolbarEl = container.createEl('div', { cls: 'practice-sidebar-toolbar' });
         this.renderToolbar(toolbarEl);
 
@@ -34,26 +38,30 @@ export class QueueControlView extends ItemView {
     private renderToolbar(parent: HTMLElement) {
         parent.createEl('h4', { text: 'Filters', cls: 'sidebar-section-header' });
         
-        const row1 = parent.createEl('div', { cls: 'practice-toolbar-row' });
-        row1.createEl('span', { text: 'Category:' });
-        const catSelect = row1.createEl('select');
+        const filterGroup = parent.createEl('div', { cls: 'practice-sidebar-toolbar' });
+        
+        // Category Column
+        const catCol = filterGroup.createEl('div', { cls: 'practice-toolbar-col' });
+        catCol.createEl('span', { text: 'Category:', cls: 'sidebar-label-small' });
+        const catSelect = catCol.createEl('select', { cls: 'setting-input-text' });
         this.plugin.session.categories.forEach(cat => {
             const opt = catSelect.createEl('option', { text: cat, value: cat });
             if (cat === this.plugin.session.filterCategory) opt.selected = true;
         });
         catSelect.onchange = () => {
-            this.plugin.session.filterCategory = catSelect.value;
-            this.plugin.refreshQueue();
+            this.plugin.sessionManager.filterCategory = catSelect.value;
+            this.plugin.sessionManager.refreshQueue();
         };
 
-        const row2 = parent.createEl('div', { cls: 'practice-toolbar-row' });
-        row2.createEl('span', { text: 'Max Familiarity:' });
+        // Familiarity Column (Vertical)
+        const famCol = filterGroup.createEl('div', { cls: 'vertical-slider-column' });
+        const sliderContainer = famCol.createEl('div', { cls: 'vertical-slider-container' });
         
-        const sliderContainer = row2.createEl('div', { cls: 'vertical-slider-container' });
-        const famSlider = sliderContainer.createEl('input', { type: 'range', cls: 'vertical-slider' });
+        const sliderWrapper = sliderContainer.createEl('div', { cls: 'vertical-slider-wrapper' });
+        const famSlider = sliderWrapper.createEl('input', { type: 'range', cls: 'vertical-slider' });
         famSlider.min = "0"; famSlider.max = "100";
         famSlider.value = this.plugin.session.filterFamiliarity.toString();
-        famSlider.setAttribute('orient', 'vertical');
+        famSlider.title = "Max Familiarity Filter";
 
         const famLabel = sliderContainer.createEl('span', { 
             text: `${this.plugin.session.filterFamiliarity.toFixed(0)}%`,
@@ -62,8 +70,8 @@ export class QueueControlView extends ItemView {
 
         famSlider.oninput = () => famLabel.setText(`${famSlider.value}%`);
         famSlider.onchange = () => {
-            this.plugin.session.filterFamiliarity = parseInt(famSlider.value);
-            this.plugin.refreshQueue();
+            this.plugin.sessionManager.filterFamiliarity = parseInt(famSlider.value);
+            this.plugin.sessionManager.refreshQueue();
         };
     }
 
@@ -91,7 +99,7 @@ export class QueueControlView extends ItemView {
             sample.onclick = async () => {
                 this.plugin.settings.fontSize = sz;
                 await this.plugin.saveSettings();
-                this.plugin.refreshAllViews();
+                this.plugin.viewManager.refreshAllViews();
             };
         });
 
@@ -100,21 +108,25 @@ export class QueueControlView extends ItemView {
         
         const presetsContainer = rowColor.createEl('div', { cls: 'color-presets' });
         const themes = [
-            { name: 'Default', text: 'var(--text-normal)', bg: 'var(--background-primary)' },
-            { name: 'Dark Blue', text: '#e0e0e0', bg: '#1a202c' },
-            { name: 'Sepia', text: '#5b4636', bg: '#f4ecd8' },
-            { name: 'Matrix', text: '#00ff00', bg: '#000000' },
-            { name: 'Clean', text: '#2d3748', bg: '#ffffff' }
+            { id: 'default', name: 'Default', text: 'var(--text-normal)', bg: 'var(--background-primary)' },
+            { id: 'dark-blue', name: 'Dark Blue', text: '#e2e8f0', bg: '#1a202c' },
+            { id: 'sepia', name: 'Sepia', text: '#5b4636', bg: '#f4ecd8' },
+            { id: 'solarized-dark', name: 'Solarized Dark', text: '#839496', bg: '#002b36' },
+            { id: 'solarized-light', name: 'Solarized Light', text: '#657b83', bg: '#fdf6e3' },
+            { id: 'clean', name: 'Clean', text: '#1a202c', bg: '#ffffff' }
         ];
 
         themes.forEach(t => {
             const dot = presetsContainer.createEl('div', { cls: 'color-preset', title: t.name });
             dot.style.backgroundColor = t.bg;
+            if (this.plugin.settings.theme === t.id) dot.style.borderColor = "var(--flat-primary)";
+            
             dot.onclick = async () => {
+                this.plugin.settings.theme = t.id;
                 this.plugin.settings.textColor = t.text;
                 this.plugin.settings.bgColor = t.bg;
                 await this.plugin.saveSettings();
-                this.plugin.refreshAllViews();
+                this.plugin.viewManager.refreshAllViews();
             };
         });
 
@@ -159,13 +171,13 @@ export class QueueControlView extends ItemView {
             const famMarker = item.createEl('div', { cls: 'practice-queue-item-fam-dot' });
             famMarker.style.backgroundColor = `hsl(${hue}, 80%, 45%)`;
 
-            item.onclick = () => {
-                this.plugin.session.currentQIndex = idx;
-                this.plugin.session.isFinished = false;
-                this.plugin.session.showingAnswer = false;
-                this.plugin.session.selectedChoices.clear();
-                this.plugin.saveSession();
-                this.plugin.refreshAllViews();
+            item.onclick = async () => {
+                this.plugin.sessionManager.currentQIndex = idx;
+                this.plugin.sessionManager.isFinished = false;
+                this.plugin.sessionManager.showingAnswer = false;
+                this.plugin.sessionManager.selectedChoices.clear();
+                await this.plugin.sessionManager.saveSession();
+                this.plugin.viewManager.refreshAllViews();
             };
 
             if (idx === this.plugin.session.currentQIndex) {

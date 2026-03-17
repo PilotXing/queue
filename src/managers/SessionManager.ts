@@ -69,10 +69,11 @@ export class SessionManager {
 
             if (tagArray.some(t => String(t).includes('q'))) {
                 const fm = cache!.frontmatter!;
-                const category = fm.category || "Uncategorized";
+                const category = (fm.category || "Uncategorized").toString().trim();
                 cats.add(category);
 
-                if (this.filterCategory !== "All" && category !== this.filterCategory) continue;
+                const currentFilterCat = this.filterCategory.trim();
+                if (currentFilterCat !== "All" && category !== currentFilterCat) continue;
 
                 let fam = fm.familiarity;
                 if (fam === undefined || fam === null) fam = 50;

@@ -106,9 +106,10 @@ var SessionManager = class {
       const tagArray = Array.isArray(tags) ? tags : [tags];
       if (tagArray.some((t) => String(t).includes("q"))) {
         const fm = cache.frontmatter;
-        const category = fm.category || "Uncategorized";
+        const category = (fm.category || "Uncategorized").toString().trim();
         cats.add(category);
-        if (this.filterCategory !== "All" && category !== this.filterCategory)
+        const currentFilterCat = this.filterCategory.trim();
+        if (currentFilterCat !== "All" && category !== currentFilterCat)
           continue;
         let fam = fm.familiarity;
         if (fam === void 0 || fam === null)
@@ -293,6 +294,7 @@ var DEFAULT_SETTINGS = {
   fontSize: 16,
   textColor: "var(--text-normal)",
   bgColor: "var(--background-primary)",
+  theme: "default",
   unlockButtonLayout: false,
   buttonLayouts: {}
 };
@@ -465,11 +467,15 @@ var DraggableButton = class {
 var PracticeView = class extends import_obsidian2.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
+    this.touchStartY = 0;
+    this.touchStartTime = 0;
     // Draggable Instances
     this.choiceButtons = [];
     this.actionButtons = [];
     this.plugin = plugin;
     this.boundKeydownHandler = this.onKeydown.bind(this);
+    this.boundTouchStartHandler = this.onTouchStart.bind(this);
+    this.boundTouchEndHandler = this.onTouchEnd.bind(this);
   }
   getViewType() {
     return VIEW_TYPE_PRACTICE;
@@ -483,12 +489,16 @@ var PracticeView = class extends import_obsidian2.ItemView {
   onOpen() {
     return __async(this, null, function* () {
       document.addEventListener("keydown", this.boundKeydownHandler);
+      this.contentEl.addEventListener("touchstart", this.boundTouchStartHandler, { passive: true });
+      this.contentEl.addEventListener("touchend", this.boundTouchEndHandler, { passive: true });
       yield this.render();
     });
   }
   onClose() {
     return __async(this, null, function* () {
       document.removeEventListener("keydown", this.boundKeydownHandler);
+      this.contentEl.removeEventListener("touchstart", this.boundTouchStartHandler);
+      this.contentEl.removeEventListener("touchend", this.boundTouchEndHandler);
     });
   }
   onKeydown(e) {
@@ -539,6 +549,44 @@ var PracticeView = class extends import_obsidian2.ItemView {
       }
     }
   }
+  onTouchStart(e) {
+    if (e.changedTouches.length > 0) {
+      this.touchStartY = e.changedTouches[0].screenY;
+      this.touchStartTime = Date.now();
+    }
+  }
+  onTouchEnd(e) {
+    if (e.changedTouches.length > 0) {
+      const touchEndY = e.changedTouches[0].screenY;
+      const timeDiff = Date.now() - this.touchStartTime;
+      const distance = this.touchStartY - touchEndY;
+      if (distance > 50 && timeDiff < 400) {
+        this.handleSwipeUp();
+      }
+    }
+  }
+  handleSwipeUp() {
+    if (this.plugin.buttonManager.isUnlocked)
+      return;
+    if (this.plugin.session.isFinished)
+      return;
+    const qMeta = this.plugin.session.currentQueue[this.plugin.session.currentQIndex];
+    if (!qMeta)
+      return;
+    const isSingle = qMeta.answer.length <= 1;
+    if (this.plugin.session.showingAnswer) {
+      this.plugin.session.nextQuestion(true);
+    } else {
+      if (isSingle) {
+        this.plugin.session.showingAnswer = true;
+        this.plugin.refreshAllViews();
+      } else {
+        if (this.plugin.session.selectedChoices.size > 0) {
+          this.gradeMultipleChoice();
+        }
+      }
+    }
+  }
   toggleChoice(char) {
     if (this.plugin.buttonManager.isUnlocked)
       return;
@@ -574,6 +622,8 @@ var PracticeView = class extends import_obsidian2.ItemView {
       const container = this.contentEl;
       container.empty();
       container.addClass("practice-view-root");
+      container.removeClass("theme-solarized-dark", "theme-solarized-light", "theme-dark-blue", "theme-sepia", "theme-clean", "theme-default");
+      container.addClass(`theme-${this.plugin.settings.theme}`);
       if (this.plugin.buttonManager.isUnlocked) {
         const banner = container.createEl("div", { cls: "practice-edit-banner" });
         banner.setText("Layout Edit Mode Active: Drag buttons to reposition them. Toggle off in Settings to resume practice.");
@@ -614,6 +664,7 @@ var PracticeView = class extends import_obsidian2.ItemView {
       questionContent.style.fontSize = `${this.plugin.settings.fontSize}px`;
       questionContent.style.color = this.plugin.settings.textColor;
       questionContent.style.backgroundColor = this.plugin.settings.bgColor;
+      this.renderCurve(questionContent);
       yield this.renderQuestion(questionContent, qMeta);
     });
   }
@@ -724,28 +775,31 @@ var PracticeView = class extends import_obsidian2.ItemView {
     const mountDraggable = (id, text, cls, onClick) => {
       const btn = new DraggableButton(floatingCanvas, this.plugin.buttonManager, id, text, `practice-flat-btn ${cls}`, onClick);
       btn.containerEl.style.pointerEvents = "auto";
+      btn.containerEl.addClass("is-initializing");
       return btn;
     };
     this.choiceButtons = [];
-    this.plugin.session.activeChoices.forEach((choice, index) => {
-      const baseId = `btn_choice_${choice.char}`;
-      const clsList = this.plugin.session.selectedChoices.has(choice.char) ? "is-selected practice-btn-choice" : "practice-btn-choice";
-      const btn = mountDraggable(baseId, choice.char, clsList, () => {
-        if (this.plugin.session.showingAnswer) {
-          if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
-            this.plugin.session.nextQuestion(true);
+    if (import_obsidian2.Platform.isMobile) {
+      this.plugin.session.activeChoices.forEach((choice) => {
+        const baseId = `btn_choice_${choice.char}`;
+        const clsList = this.plugin.session.selectedChoices.has(choice.char) ? "is-selected practice-btn-choice" : "practice-btn-choice";
+        const btn = mountDraggable(baseId, choice.char, clsList, () => {
+          if (this.plugin.session.showingAnswer) {
+            if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+              this.plugin.session.nextQuestion(true);
+            }
+            return;
           }
-          return;
-        }
-        if (isSingle) {
-          const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
-          this.plugin.session.handleGrading(qMeta, isCorrect, choice.char);
-        } else {
-          this.toggleChoice(choice.char);
-        }
+          if (isSingle) {
+            const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
+            this.plugin.session.handleGrading(qMeta, isCorrect, choice.char);
+          } else {
+            this.toggleChoice(choice.char);
+          }
+        });
+        this.choiceButtons.push(btn);
       });
-      this.choiceButtons.push(btn);
-    });
+    }
     this.actionButtons = [];
     if (this.plugin.session.showingAnswer) {
       if (!isSingle) {
@@ -760,28 +814,88 @@ var PracticeView = class extends import_obsidian2.ItemView {
         }));
       }
     } else {
-      if (!isSingle) {
+      if (!isSingle && !import_obsidian2.Platform.isMobile) {
         this.actionButtons.push(mountDraggable("btn_submit", "Submit Answer", "practice-btn-submit", () => {
           this.gradeMultipleChoice();
         }));
       }
-      this.actionButtons.push(mountDraggable("btn_show", "(S)how Answer", "practice-btn-show", () => {
-        this.plugin.session.showingAnswer = true;
-        this.plugin.refreshAllViews();
-      }));
-      this.actionButtons.push(mountDraggable("btn_skip", "Skip (N)", "practice-btn-skip", () => {
-        this.setMastered(qMeta);
-      }));
     }
-    let unpositionedOffset = 0;
-    const defaultPositions = (btnElements, startX, y) => {
-      btnElements.forEach((btn, idx) => {
+    const applyDefaultLayout = () => {
+      const containerWidth = container.offsetWidth || 800;
+      const containerHeight = container.offsetHeight || 600;
+      const allBtns = this.choiceButtons.concat(this.actionButtons);
+      allBtns.forEach((btn) => {
+        btn.containerEl.addClass("no-transition");
+      });
+      const choiceY = containerHeight - 110;
+      let currentX = containerWidth - 30;
+      this.choiceButtons.forEach((btn) => {
         if (!this.plugin.buttonManager.getPosition(btn["buttonId"])) {
-          btn.containerEl.style.transform = `translate(${startX + unpositionedOffset}px, ${y}px)`;
-          unpositionedOffset += btn.containerEl.offsetWidth + 10 || 50;
+          const btnWidth = btn.containerEl.offsetWidth || 40;
+          btn.containerEl.style.transform = `translate(${currentX - btnWidth}px, ${choiceY}px)`;
+          currentX -= btnWidth + 12;
         }
       });
+      const actionY = containerHeight - 60;
+      currentX = containerWidth - 30;
+      this.actionButtons.slice().reverse().forEach((btn) => {
+        if (!this.plugin.buttonManager.getPosition(btn["buttonId"])) {
+          const btnWidth = btn.containerEl.offsetWidth || 110;
+          btn.containerEl.style.transform = `translate(${currentX - btnWidth}px, ${actionY}px)`;
+          currentX -= btnWidth + 12;
+        }
+      });
+      setTimeout(() => {
+        allBtns.forEach((btn) => {
+          btn.containerEl.removeClass("is-initializing");
+          btn.containerEl.removeClass("no-transition");
+        });
+      }, 50);
     };
+    setTimeout(applyDefaultLayout, 250);
+  }
+  renderCurve(container) {
+    const history = this.plugin.sessionManager.currentQueue.map((q) => q.familiarity);
+    if (history.length === 0)
+      return;
+    const curveContainer = container.createEl("div", { cls: "familiarity-curve-root" });
+    const canvas = curveContainer.createEl("canvas");
+    canvas.width = curveContainer.offsetWidth || 800;
+    canvas.height = 60;
+    const ctx = canvas.getContext("2d");
+    if (!ctx)
+      return;
+    const rootStyle = getComputedStyle(curveContainer);
+    const primaryColor = rootStyle.getPropertyValue("--flat-primary").trim() || "#268bd2";
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, primaryColor + "44");
+    gradient.addColorStop(1, primaryColor + "00");
+    const step = canvas.width / (history.length - 1 || 1);
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    history.forEach((fam, i) => {
+      const x = i * step;
+      const y = canvas.height - fam / 100 * canvas.height;
+      ctx.lineTo(x, y);
+    });
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.strokeStyle = primaryColor;
+    ctx.lineWidth = 2.5;
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = primaryColor;
+    history.forEach((fam, i) => {
+      const x = i * step;
+      const y = canvas.height - fam / 100 * canvas.height;
+      if (i === 0)
+        ctx.moveTo(x, y);
+      else
+        ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 };
 
@@ -811,6 +925,8 @@ var QueueControlView = class extends import_obsidian3.ItemView {
       const container = this.contentEl;
       container.empty();
       container.addClass("practice-control-root");
+      container.removeClass("theme-solarized-dark", "theme-solarized-light", "theme-dark-blue", "theme-sepia", "theme-clean", "theme-default");
+      container.addClass(`theme-${this.plugin.settings.theme}`);
       const toolbarEl = container.createEl("div", { cls: "practice-sidebar-toolbar" });
       this.renderToolbar(toolbarEl);
       const settingsEl = container.createEl("div", { cls: "practice-sidebar-settings" });
@@ -821,34 +937,35 @@ var QueueControlView = class extends import_obsidian3.ItemView {
   }
   renderToolbar(parent) {
     parent.createEl("h4", { text: "Filters", cls: "sidebar-section-header" });
-    const row1 = parent.createEl("div", { cls: "practice-toolbar-row" });
-    row1.createEl("span", { text: "Category:" });
-    const catSelect = row1.createEl("select");
+    const filterGroup = parent.createEl("div", { cls: "practice-sidebar-toolbar" });
+    const catCol = filterGroup.createEl("div", { cls: "practice-toolbar-col" });
+    catCol.createEl("span", { text: "Category:", cls: "sidebar-label-small" });
+    const catSelect = catCol.createEl("select", { cls: "setting-input-text" });
     this.plugin.session.categories.forEach((cat) => {
       const opt = catSelect.createEl("option", { text: cat, value: cat });
       if (cat === this.plugin.session.filterCategory)
         opt.selected = true;
     });
     catSelect.onchange = () => {
-      this.plugin.session.filterCategory = catSelect.value;
-      this.plugin.refreshQueue();
+      this.plugin.sessionManager.filterCategory = catSelect.value;
+      this.plugin.sessionManager.refreshQueue();
     };
-    const row2 = parent.createEl("div", { cls: "practice-toolbar-row" });
-    row2.createEl("span", { text: "Max Familiarity:" });
-    const sliderContainer = row2.createEl("div", { cls: "vertical-slider-container" });
-    const famSlider = sliderContainer.createEl("input", { type: "range", cls: "vertical-slider" });
+    const famCol = filterGroup.createEl("div", { cls: "vertical-slider-column" });
+    const sliderContainer = famCol.createEl("div", { cls: "vertical-slider-container" });
+    const sliderWrapper = sliderContainer.createEl("div", { cls: "vertical-slider-wrapper" });
+    const famSlider = sliderWrapper.createEl("input", { type: "range", cls: "vertical-slider" });
     famSlider.min = "0";
     famSlider.max = "100";
     famSlider.value = this.plugin.session.filterFamiliarity.toString();
-    famSlider.setAttribute("orient", "vertical");
+    famSlider.title = "Max Familiarity Filter";
     const famLabel = sliderContainer.createEl("span", {
       text: `${this.plugin.session.filterFamiliarity.toFixed(0)}%`,
       cls: "vertical-slider-label"
     });
     famSlider.oninput = () => famLabel.setText(`${famSlider.value}%`);
     famSlider.onchange = () => {
-      this.plugin.session.filterFamiliarity = parseInt(famSlider.value);
-      this.plugin.refreshQueue();
+      this.plugin.sessionManager.filterFamiliarity = parseInt(famSlider.value);
+      this.plugin.sessionManager.refreshQueue();
     };
   }
   renderSettings(parent) {
@@ -874,27 +991,31 @@ var QueueControlView = class extends import_obsidian3.ItemView {
       sample.onclick = () => __async(this, null, function* () {
         this.plugin.settings.fontSize = sz;
         yield this.plugin.saveSettings();
-        this.plugin.refreshAllViews();
+        this.plugin.viewManager.refreshAllViews();
       });
     });
     const rowColor = parent.createEl("div", { cls: "practice-sidebar-setting-row" });
     rowColor.createEl("span", { text: "Visual Theme:" });
     const presetsContainer = rowColor.createEl("div", { cls: "color-presets" });
     const themes = [
-      { name: "Default", text: "var(--text-normal)", bg: "var(--background-primary)" },
-      { name: "Dark Blue", text: "#e0e0e0", bg: "#1a202c" },
-      { name: "Sepia", text: "#5b4636", bg: "#f4ecd8" },
-      { name: "Matrix", text: "#00ff00", bg: "#000000" },
-      { name: "Clean", text: "#2d3748", bg: "#ffffff" }
+      { id: "default", name: "Default", text: "var(--text-normal)", bg: "var(--background-primary)" },
+      { id: "dark-blue", name: "Dark Blue", text: "#e2e8f0", bg: "#1a202c" },
+      { id: "sepia", name: "Sepia", text: "#5b4636", bg: "#f4ecd8" },
+      { id: "solarized-dark", name: "Solarized Dark", text: "#839496", bg: "#002b36" },
+      { id: "solarized-light", name: "Solarized Light", text: "#657b83", bg: "#fdf6e3" },
+      { id: "clean", name: "Clean", text: "#1a202c", bg: "#ffffff" }
     ];
     themes.forEach((t) => {
       const dot = presetsContainer.createEl("div", { cls: "color-preset", title: t.name });
       dot.style.backgroundColor = t.bg;
+      if (this.plugin.settings.theme === t.id)
+        dot.style.borderColor = "var(--flat-primary)";
       dot.onclick = () => __async(this, null, function* () {
+        this.plugin.settings.theme = t.id;
         this.plugin.settings.textColor = t.text;
         this.plugin.settings.bgColor = t.bg;
         yield this.plugin.saveSettings();
-        this.plugin.refreshAllViews();
+        this.plugin.viewManager.refreshAllViews();
       });
     });
     const customRow = rowColor.createEl("div", { cls: "practice-toolbar-row" });
@@ -934,14 +1055,14 @@ var QueueControlView = class extends import_obsidian3.ItemView {
       const hue = Math.round(q.familiarity * 1.2);
       const famMarker = item.createEl("div", { cls: "practice-queue-item-fam-dot" });
       famMarker.style.backgroundColor = `hsl(${hue}, 80%, 45%)`;
-      item.onclick = () => {
-        this.plugin.session.currentQIndex = idx;
-        this.plugin.session.isFinished = false;
-        this.plugin.session.showingAnswer = false;
-        this.plugin.session.selectedChoices.clear();
-        this.plugin.saveSession();
-        this.plugin.refreshAllViews();
-      };
+      item.onclick = () => __async(this, null, function* () {
+        this.plugin.sessionManager.currentQIndex = idx;
+        this.plugin.sessionManager.isFinished = false;
+        this.plugin.sessionManager.showingAnswer = false;
+        this.plugin.sessionManager.selectedChoices.clear();
+        yield this.plugin.sessionManager.saveSession();
+        this.plugin.viewManager.refreshAllViews();
+      });
       if (idx === this.plugin.session.currentQIndex) {
         setTimeout(() => item.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
       }
