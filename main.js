@@ -39,26 +39,15 @@ var __async = (__this, __arguments, generator) => {
 // main.ts
 var main_exports = {};
 __export(main_exports, {
-  VIEW_TYPE_CONTROL: () => VIEW_TYPE_CONTROL,
-  VIEW_TYPE_PRACTICE: () => VIEW_TYPE_PRACTICE,
   default: () => PracticePlugin
 });
 module.exports = __toCommonJS(main_exports);
+var import_obsidian5 = require("obsidian");
+
+// src/models/PracticeSession.ts
 var import_obsidian = require("obsidian");
-var VIEW_TYPE_PRACTICE = "practice-view";
-var VIEW_TYPE_CONTROL = "queue-control-view";
-var DEFAULT_SETTINGS = {
-  failOffsets: "3, 10, -1",
-  savedQueuePaths: [],
-  savedIndex: 0,
-  fontSize: 16,
-  textColor: "var(--text-normal)",
-  bgColor: "var(--background-primary)"
-};
-var PracticePlugin = class extends import_obsidian.Plugin {
-  constructor() {
-    super(...arguments);
-    // Shared State
+var PracticeSession = class {
+  constructor(plugin) {
     this.currentQueue = [];
     this.currentQIndex = 0;
     this.isFinished = false;
@@ -71,221 +60,14 @@ var PracticePlugin = class extends import_obsidian.Plugin {
     this.sessionResults = /* @__PURE__ */ new Map();
     this.selectedChoices = /* @__PURE__ */ new Set();
     this.activeChoices = [];
-  }
-  onload() {
-    return __async(this, null, function* () {
-      yield this.loadSettings();
-      this.registerView(
-        VIEW_TYPE_PRACTICE,
-        (leaf) => new PracticeView(leaf, this)
-      );
-      this.registerView(
-        VIEW_TYPE_CONTROL,
-        (leaf) => new QueueControlView(leaf, this)
-      );
-      this.addRibbonIcon("check-square", "Open Practice Mode", () => {
-        this.activateView();
-      });
-      this.addCommand({
-        id: "open-practice-view",
-        name: "Open Practice View",
-        callback: () => this.activateView()
-      });
-      this.addCommand({
-        id: "open-practice-control",
-        name: "Open Practice Control Sidebar",
-        callback: () => this.activateControlView()
-      });
-      this.addSettingTab(new PracticeSettingTab(this.app, this));
-      this.registerEvent(
-        this.app.workspace.on("file-open", (file) => this.onFileOpen(file))
-      );
-      if (this.settings.savedQueuePaths.length > 0) {
-        yield this.restoreSession();
-      } else {
-        this.refreshQueue();
-      }
-    });
-  }
-  onFileOpen(file) {
-    return __async(this, null, function* () {
-      var _a;
-      if (!file)
-        return;
-      const cache = this.app.metadataCache.getFileCache(file);
-      if (((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.type) === "practice_session") {
-        yield this.loadSessionFromFile(file);
-      }
-    });
-  }
-  loadSessionFromFile(file) {
-    return __async(this, null, function* () {
-      var _a, _b;
-      const content = yield this.app.vault.read(file);
-      const cache = this.app.metadataCache.getFileCache(file);
-      const fm = (cache == null ? void 0 : cache.frontmatter) || {};
-      this.filterCategory = fm.category || "All";
-      this.currentQIndex = fm.currentIndex || 0;
-      this.isFinished = fm.isFinished || false;
-      this.currentQueue = [];
-      const linkRegex = /\[\[(.*?)(?:\|.*?)?\]\]/g;
-      let match;
-      while ((match = linkRegex.exec(content)) !== null) {
-        const path = match[1];
-        const qFile = this.app.vault.getAbstractFileByPath(path);
-        if (qFile instanceof import_obsidian.TFile) {
-          const qCache = this.app.metadataCache.getFileCache(qFile);
-          const qFm = (qCache == null ? void 0 : qCache.frontmatter) || {};
-          this.currentQueue.push({
-            file: qFile,
-            id: qFm.id || 0,
-            familiarity: (_a = qFm.familiarity) != null ? _a : 50,
-            answer: ((_b = qFm.answer) == null ? void 0 : _b.toString()) || ""
-          });
-        }
-      }
-      if (this.currentQueue.length > 0) {
-        yield this.saveSession();
-        yield this.activateView();
-        this.refreshAllViews();
-      }
-    });
-  }
-  loadSettings() {
-    return __async(this, null, function* () {
-      this.settings = Object.assign({}, DEFAULT_SETTINGS, yield this.loadData());
-    });
-  }
-  saveSettings() {
-    return __async(this, null, function* () {
-      yield this.saveData(this.settings);
-    });
-  }
-  activateView() {
-    return __async(this, null, function* () {
-      const { workspace } = this.app;
-      let leaf = null;
-      const leaves = workspace.getLeavesOfType(VIEW_TYPE_PRACTICE);
-      if (leaves.length > 0) {
-        leaf = leaves[0];
-      } else {
-        leaf = workspace.getLeaf("tab");
-        yield leaf.setViewState({ type: VIEW_TYPE_PRACTICE, active: true });
-      }
-      workspace.revealLeaf(leaf);
-      this.activateControlView();
-    });
-  }
-  activateControlView() {
-    return __async(this, null, function* () {
-      const { workspace } = this.app;
-      let leaf = null;
-      const leaves = workspace.getLeavesOfType(VIEW_TYPE_CONTROL);
-      if (leaves.length > 0) {
-        leaf = leaves[0];
-      } else {
-        leaf = workspace.getRightLeaf(false);
-        if (leaf) {
-          yield leaf.setViewState({ type: VIEW_TYPE_CONTROL, active: true });
-        }
-      }
-      if (leaf)
-        workspace.revealLeaf(leaf);
-    });
-  }
-  refreshAllViews() {
-    return __async(this, null, function* () {
-      this.app.workspace.getLeavesOfType(VIEW_TYPE_PRACTICE).forEach((l) => l.view.render());
-      this.app.workspace.getLeavesOfType(VIEW_TYPE_CONTROL).forEach((l) => l.view.render());
-    });
-  }
-  refreshQueue() {
-    var _a, _b;
-    this.currentQueue = [];
-    const files = this.app.vault.getMarkdownFiles();
-    const cats = /* @__PURE__ */ new Set();
-    for (const file of files) {
-      const cache = this.app.metadataCache.getFileCache(file);
-      const tags = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.tags) || [];
-      const tagArray = Array.isArray(tags) ? tags : [tags];
-      if (tagArray.some((t) => String(t).includes("q"))) {
-        const fm = cache.frontmatter;
-        const category = fm.category || "Uncategorized";
-        cats.add(category);
-        if (this.filterCategory !== "All" && category !== this.filterCategory)
-          continue;
-        let fam = fm.familiarity;
-        if (fam === void 0 || fam === null)
-          fam = 50;
-        if (fam > this.filterFamiliarity)
-          continue;
-        if (fam < 100) {
-          this.currentQueue.push({
-            file,
-            id: fm.id,
-            familiarity: fam,
-            answer: ((_b = fm.answer) == null ? void 0 : _b.toString()) || ""
-          });
-        }
-      }
-    }
-    this.categories = ["All", ...Array.from(cats).sort()];
-    this.currentQueue.sort((a, b) => a.familiarity - b.familiarity);
-    this.currentQIndex = 0;
-    this.isFinished = false;
-    this.showingAnswer = false;
-    this.selectedChoices.clear();
-    this.saveSession();
-    this.refreshAllViews();
-  }
-  saveSession() {
-    return __async(this, null, function* () {
-      this.settings.savedQueuePaths = this.currentQueue.map((q) => q.file.path);
-      this.settings.savedIndex = this.currentQIndex;
-      yield this.saveSettings();
-    });
-  }
-  restoreSession() {
-    return __async(this, null, function* () {
-      var _a, _b, _c, _d;
-      const paths = this.settings.savedQueuePaths;
-      const index = this.settings.savedIndex;
-      this.currentQueue = [];
-      for (const path of paths) {
-        const file = this.app.vault.getAbstractFileByPath(path);
-        if (file instanceof import_obsidian.TFile) {
-          const cache = this.app.metadataCache.getFileCache(file);
-          const fm = (cache == null ? void 0 : cache.frontmatter) || {};
-          this.currentQueue.push({
-            file,
-            id: fm.id || 0,
-            familiarity: (_a = fm.familiarity) != null ? _a : 50,
-            answer: ((_b = fm.answer) == null ? void 0 : _b.toString()) || ""
-          });
-        }
-      }
-      this.currentQIndex = index;
-      if (this.currentQIndex >= this.currentQueue.length) {
-        this.currentQIndex = 0;
-      }
-      const files = this.app.vault.getMarkdownFiles();
-      const cats = /* @__PURE__ */ new Set();
-      for (const file of files) {
-        const cache = this.app.metadataCache.getFileCache(file);
-        const tags = ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c.tags) || [];
-        if (Array.isArray(tags) ? tags.includes("q") : tags === "q") {
-          cats.add(((_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d.category) || "Uncategorized");
-        }
-      }
-      this.categories = ["All", ...Array.from(cats).sort()];
-    });
+    this.plugin = plugin;
   }
   autosaveSession() {
     return __async(this, null, function* () {
       const timestamp = (0, import_obsidian.moment)().format("YYYY-MM-DD_HH-mm-ss");
       const folderPath = "Practice_Sessions";
-      if (!(this.app.vault.getAbstractFileByPath(folderPath) instanceof import_obsidian.TFolder)) {
-        yield this.app.vault.createFolder(folderPath);
+      if (!(this.plugin.app.vault.getAbstractFileByPath(folderPath) instanceof import_obsidian.TFolder)) {
+        yield this.plugin.app.vault.createFolder(folderPath);
       }
       const fileName = this.filterCategory.replace(/[^a-z0-9]/gi, "_").toLowerCase();
       const path = `${folderPath}/autosave_${fileName}.md`;
@@ -303,11 +85,11 @@ timestamp: ${timestamp}
 
 ## Queue
 ${links}`;
-      const existingFile = this.app.vault.getAbstractFileByPath(path);
+      const existingFile = this.plugin.app.vault.getAbstractFileByPath(path);
       if (existingFile instanceof import_obsidian.TFile) {
-        yield this.app.vault.modify(existingFile, content);
+        yield this.plugin.app.vault.modify(existingFile, content);
       } else {
-        yield this.app.vault.create(path, content);
+        yield this.plugin.app.vault.create(path, content);
       }
     });
   }
@@ -316,7 +98,7 @@ ${links}`;
       const f = qMeta.familiarity;
       const newFam = isCorrect ? 100 - (100 - f) / 3 * 2 : f / 3;
       qMeta.familiarity = newFam;
-      yield this.app.fileManager.processFrontMatter(qMeta.file, (fm) => {
+      yield this.plugin.app.fileManager.processFrontMatter(qMeta.file, (fm) => {
         fm.familiarity = newFam;
       });
       yield this.recordHistory(qMeta, isCorrect, answerStr);
@@ -327,7 +109,7 @@ ${links}`;
       } else {
         this.wrongAnswers++;
         this.showingAnswer = true;
-        this.refreshAllViews();
+        this.plugin.refreshAllViews();
       }
       yield this.autosaveSession();
     });
@@ -336,7 +118,7 @@ ${links}`;
     return __async(this, null, function* () {
       const ts = (0, import_obsidian.moment)().format("YYYY-MM-DD HH:mm:ss");
       const status = isCorrect ? "\u2705" : "\u274C";
-      const content = yield this.app.vault.read(qMeta.file);
+      const content = yield this.plugin.app.vault.read(qMeta.file);
       let newContent = content;
       const line = `| ${ts} | ${answerStr} | ${status} |`;
       if (content.includes("# Practice History")) {
@@ -350,7 +132,7 @@ ${line}`;
 |---|---|---|
 ${line}`;
       }
-      yield this.app.vault.modify(qMeta.file, newContent);
+      yield this.plugin.app.vault.modify(qMeta.file, newContent);
     });
   }
   nextQuestion(wrong) {
@@ -358,7 +140,7 @@ ${line}`;
     if (wrong) {
       const qMeta = this.currentQueue[this.currentQIndex];
       this.currentQueue.splice(this.currentQIndex, 1);
-      const rawOffsets = ((_a = this.settings) == null ? void 0 : _a.failOffsets) || "3, 10, -1";
+      const rawOffsets = ((_a = this.plugin.settings) == null ? void 0 : _a.failOffsets) || "3, 10, -1";
       const offsets = rawOffsets.split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n));
       for (const offset of offsets) {
         let targetIdx;
@@ -382,13 +164,140 @@ ${line}`;
     }
     this.showingAnswer = false;
     this.selectedChoices.clear();
-    this.saveSession();
-    this.refreshAllViews();
+    this.plugin.saveSession();
+    this.plugin.refreshAllViews();
   }
 };
-var PracticeView = class extends import_obsidian.ItemView {
+
+// src/managers/ButtonLayoutManager.ts
+var ButtonLayoutManager = class {
+  constructor(plugin) {
+    this.plugin = plugin;
+  }
+  get isUnlocked() {
+    return this.plugin.settings.unlockButtonLayout;
+  }
+  getPosition(buttonId) {
+    return this.plugin.settings.buttonLayouts[buttonId] || null;
+  }
+  savePosition(buttonId, x, y) {
+    return __async(this, null, function* () {
+      this.plugin.settings.buttonLayouts[buttonId] = { x, y };
+      yield this.plugin.saveSettings();
+    });
+  }
+};
+
+// src/views/PracticeView.ts
+var import_obsidian2 = require("obsidian");
+
+// src/types.ts
+var VIEW_TYPE_PRACTICE = "practice-view";
+var VIEW_TYPE_CONTROL = "queue-control-view";
+var DEFAULT_SETTINGS = {
+  failOffsets: "3, 10, -1",
+  savedQueuePaths: [],
+  savedIndex: 0,
+  fontSize: 16,
+  textColor: "var(--text-normal)",
+  bgColor: "var(--background-primary)",
+  unlockButtonLayout: false,
+  buttonLayouts: {}
+};
+
+// src/components/DraggableButton.ts
+var DraggableButton = class {
+  constructor(parent, manager, id, text, cls, onClick) {
+    this.isDragging = false;
+    this.startX = 0;
+    this.startY = 0;
+    this.currentX = 0;
+    this.currentY = 0;
+    this.onPointerMove = (e) => {
+      if (!this.isDragging)
+        return;
+      this.currentX = e.clientX - this.startX;
+      this.currentY = e.clientY - this.startY;
+      this.updateTransform();
+    };
+    this.onPointerUp = (e) => __async(this, null, function* () {
+      this.isDragging = false;
+      this.containerEl.style.cursor = "grab";
+      this.containerEl.releasePointerCapture(e.pointerId);
+      this.containerEl.removeEventListener("pointermove", this.onPointerMove);
+      this.containerEl.removeEventListener("pointerup", this.onPointerUp);
+      this.containerEl.removeEventListener("pointercancel", this.onPointerUp);
+      yield this.manager.savePosition(this.buttonId, this.currentX, this.currentY);
+    });
+    this.manager = manager;
+    this.buttonId = id;
+    this.containerEl = parent.createEl("button", { text, cls: `draggable-btn ${cls}` });
+    this.containerEl.style.position = "absolute";
+    this.containerEl.style.zIndex = "50";
+    const pos = this.manager.getPosition(id);
+    if (pos) {
+      this.currentX = pos.x;
+      this.currentY = pos.y;
+      this.updateTransform();
+    }
+    this.updateModeStyles();
+    this.containerEl.onclick = (e) => {
+      if (this.manager.isUnlocked) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      onClick();
+    };
+    this.containerEl.addEventListener("pointerdown", this.onPointerDown.bind(this));
+  }
+  updateModeStyles() {
+    if (this.manager.isUnlocked) {
+      this.containerEl.addClass("is-unlocked");
+      this.containerEl.style.cursor = "grab";
+    } else {
+      this.containerEl.removeClass("is-unlocked");
+      this.containerEl.style.cursor = "pointer";
+    }
+  }
+  setText(text) {
+    this.containerEl.setText(text);
+  }
+  hide() {
+    this.containerEl.style.display = "none";
+  }
+  show() {
+    this.containerEl.style.display = "";
+  }
+  onPointerDown(e) {
+    if (!this.manager.isUnlocked)
+      return;
+    this.isDragging = true;
+    this.containerEl.style.cursor = "grabbing";
+    this.containerEl.setPointerCapture(e.pointerId);
+    let transformMatches = this.containerEl.style.transform.match(/translate\(([^p]+)px,\s*([^p]+)px\)/);
+    if (transformMatches) {
+      this.currentX = parseFloat(transformMatches[1]);
+      this.currentY = parseFloat(transformMatches[2]);
+    }
+    this.startX = e.clientX - this.currentX;
+    this.startY = e.clientY - this.currentY;
+    this.containerEl.addEventListener("pointermove", this.onPointerMove);
+    this.containerEl.addEventListener("pointerup", this.onPointerUp);
+    this.containerEl.addEventListener("pointercancel", this.onPointerUp);
+  }
+  updateTransform() {
+    this.containerEl.style.transform = `translate(${this.currentX}px, ${this.currentY}px)`;
+  }
+};
+
+// src/views/PracticeView.ts
+var PracticeView = class extends import_obsidian2.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
+    // Draggable Instances
+    this.choiceButtons = [];
+    this.actionButtons = [];
     this.plugin = plugin;
     this.boundKeydownHandler = this.onKeydown.bind(this);
   }
@@ -414,6 +323,8 @@ var PracticeView = class extends import_obsidian.ItemView {
   }
   onKeydown(e) {
     var _a;
+    if (this.plugin.buttonManager.isUnlocked)
+      return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
       return;
     if (((_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view) !== this)
@@ -422,64 +333,70 @@ var PracticeView = class extends import_obsidian.ItemView {
     if (key === "escape") {
       return;
     }
-    const q = this.plugin.currentQueue[this.plugin.currentQIndex];
+    const q = this.plugin.session.currentQueue[this.plugin.session.currentQIndex];
     if (!q)
       return;
-    if (this.plugin.showingAnswer) {
+    if (this.plugin.session.showingAnswer) {
       if (key === "enter" || key === " ") {
-        this.plugin.nextQuestion(true);
+        this.plugin.session.nextQuestion(true);
         e.preventDefault();
       }
     } else {
       const letters = ["a", "b", "c", "d", "e", "f"];
       const idx = letters.indexOf(key);
-      if (idx !== -1 && idx < this.plugin.activeChoices.length) {
+      if (idx !== -1 && idx < this.plugin.session.activeChoices.length) {
         this.toggleChoice(key.toUpperCase());
         e.preventDefault();
         return;
       }
       const num = parseInt(key, 10);
-      if (!isNaN(num) && num >= 1 && num <= this.plugin.activeChoices.length) {
+      if (!isNaN(num) && num >= 1 && num <= this.plugin.session.activeChoices.length) {
         const choiceChar = letters[num - 1].toUpperCase();
         this.toggleChoice(choiceChar);
         e.preventDefault();
         return;
       }
       if (key === "s") {
-        this.plugin.showingAnswer = true;
+        this.plugin.session.showingAnswer = true;
         this.render();
         e.preventDefault();
       } else if (key === "n") {
         this.setMastered(q);
         e.preventDefault();
-      } else if (key === "enter" && this.plugin.selectedChoices.size > 0) {
+      } else if (key === "enter" && this.plugin.session.selectedChoices.size > 0) {
         this.gradeMultipleChoice();
         e.preventDefault();
       }
     }
   }
   toggleChoice(char) {
-    if (this.plugin.selectedChoices.has(char)) {
-      this.plugin.selectedChoices.delete(char);
+    if (this.plugin.buttonManager.isUnlocked)
+      return;
+    if (this.plugin.session.selectedChoices.has(char)) {
+      this.plugin.session.selectedChoices.delete(char);
     } else {
-      this.plugin.selectedChoices.add(char);
+      this.plugin.session.selectedChoices.add(char);
     }
     this.render();
   }
   gradeMultipleChoice() {
-    const q = this.plugin.currentQueue[this.plugin.currentQIndex];
-    const selected = Array.from(this.plugin.selectedChoices).sort().join("");
+    if (this.plugin.buttonManager.isUnlocked)
+      return;
+    const q = this.plugin.session.currentQueue[this.plugin.session.currentQIndex];
+    const selected = Array.from(this.plugin.session.selectedChoices).sort().join("");
     const isCorrect = selected.toUpperCase() === q.answer.toUpperCase();
-    this.plugin.handleGrading(q, isCorrect, selected);
+    this.plugin.session.handleGrading(q, isCorrect, selected);
   }
   setMastered(qMeta) {
     return __async(this, null, function* () {
+      if (this.plugin.buttonManager.isUnlocked)
+        return;
       qMeta.familiarity = 100;
       yield this.app.fileManager.processFrontMatter(qMeta.file, (fm) => {
         fm.familiarity = 100;
       });
-      this.plugin.nextQuestion(false);
-      yield this.plugin.autosaveSession();
+      this.plugin.session.nextQuestion(false);
+      yield this.plugin.session.autosaveSession();
     });
   }
   render() {
@@ -487,32 +404,38 @@ var PracticeView = class extends import_obsidian.ItemView {
       const container = this.contentEl;
       container.empty();
       container.addClass("practice-view-root");
-      if (this.plugin.isFinished) {
+      if (this.plugin.buttonManager.isUnlocked) {
+        const banner = container.createEl("div", { cls: "practice-edit-banner" });
+        banner.setText("Layout Edit Mode Active: Drag buttons to reposition them. Toggle off in Settings to resume practice.");
+      }
+      if (this.plugin.session.isFinished) {
         this.renderSummary(container);
         return;
       }
-      if (this.plugin.currentQueue.length === 0) {
+      if (this.plugin.session.currentQueue.length === 0) {
         container.createEl("h3", { text: "Empty Queue! Start by selecting a category in the sidebar." });
         return;
       }
-      const qMeta = this.plugin.currentQueue[this.plugin.currentQIndex];
+      const qMeta = this.plugin.session.currentQueue[this.plugin.session.currentQIndex];
       if (!qMeta)
         return;
       const mainLayout = container.createEl("div", { cls: "practice-tab-layout" });
       const vpb = mainLayout.createEl("div", { cls: "practice-vpb" });
-      this.plugin.currentQueue.forEach((q, idx) => {
+      this.plugin.session.currentQueue.forEach((q, idx) => {
         const segment = vpb.createEl("div", { cls: "vpb-segment" });
-        if (idx === this.plugin.currentQIndex)
+        if (idx === this.plugin.session.currentQIndex)
           segment.addClass("is-active");
-        const result = this.plugin.sessionResults.get(q.file.path);
+        const result = this.plugin.session.sessionResults.get(q.file.path);
         if (result === "correct")
           segment.addClass("is-correct");
         else if (result === "wrong")
           segment.addClass("is-wrong");
         segment.onclick = () => {
-          this.plugin.currentQIndex = idx;
-          this.plugin.showingAnswer = false;
-          this.plugin.selectedChoices.clear();
+          if (this.plugin.buttonManager.isUnlocked)
+            return;
+          this.plugin.session.currentQIndex = idx;
+          this.plugin.session.showingAnswer = false;
+          this.plugin.session.selectedChoices.clear();
           this.plugin.saveSession();
           this.plugin.refreshAllViews();
         };
@@ -529,19 +452,19 @@ var PracticeView = class extends import_obsidian.ItemView {
     summary.createEl("h1", { text: "Practice Finished!" });
     const stats = summary.createEl("div", { cls: "practice-summary-stats" });
     const correct = stats.createEl("div", { cls: "stat-item stat-correct" });
-    correct.createEl("span", { text: this.plugin.correctAnswers.toString(), cls: "stat-value" });
+    correct.createEl("span", { text: this.plugin.session.correctAnswers.toString(), cls: "stat-value" });
     correct.createEl("span", { text: "Correct", cls: "stat-label" });
     const wrong = stats.createEl("div", { cls: "stat-item stat-wrong" });
-    wrong.createEl("span", { text: this.plugin.wrongAnswers.toString(), cls: "stat-value" });
+    wrong.createEl("span", { text: this.plugin.session.wrongAnswers.toString(), cls: "stat-value" });
     wrong.createEl("span", { text: "Wrong / Skipped", cls: "stat-label" });
     const actions = summary.createEl("div", { cls: "practice-summary-actions" });
-    const restartBtn = actions.createEl("button", { text: "Restart Queue", cls: "practice-btn-restart" });
+    const restartBtn = actions.createEl("button", { text: "Restart Queue", cls: "practice-btn-restart practice-flat-btn" });
     restartBtn.onclick = () => __async(this, null, function* () {
-      this.plugin.currentQIndex = 0;
-      this.plugin.isFinished = false;
-      this.plugin.correctAnswers = 0;
-      this.plugin.wrongAnswers = 0;
-      this.plugin.sessionResults.clear();
+      this.plugin.session.currentQIndex = 0;
+      this.plugin.session.isFinished = false;
+      this.plugin.session.correctAnswers = 0;
+      this.plugin.session.wrongAnswers = 0;
+      this.plugin.session.sessionResults.clear();
       this.plugin.refreshAllViews();
     });
   }
@@ -573,99 +496,128 @@ var PracticeView = class extends import_obsidian.ItemView {
       if (firstHeaderIndex !== -1 && firstHeaderIndex < firstChoiceIndex) {
         stemText = lines.slice(firstHeaderIndex, firstChoiceIndex).join("\n").trim();
       }
-      this.plugin.activeChoices = [];
+      this.plugin.session.activeChoices = [];
       const choicesRegex = /^- ([A-Z]) (.*)$/gm;
       let match;
       while ((match = choicesRegex.exec(content)) !== null) {
-        this.plugin.activeChoices.push({ char: match[1], text: match[2].trim() });
+        this.plugin.session.activeChoices.push({ char: match[1], text: match[2].trim() });
       }
       const headerEl = container.createEl("div", { cls: "practice-header" });
-      headerEl.createEl("span", { text: `Q: ${this.plugin.currentQIndex + 1} / ${this.plugin.currentQueue.length}` });
+      headerEl.createEl("span", { text: `Q: ${this.plugin.session.currentQIndex + 1} / ${this.plugin.session.currentQueue.length}` });
       headerEl.createEl("span", { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
       yield this.renderHistoryBar(container, qMeta);
-      const stemEl = container.createEl("div", { cls: "practice-stem material-card" });
-      yield import_obsidian.MarkdownRenderer.renderMarkdown(stemText, stemEl, qMeta.file.path, this);
+      const stemEl = container.createEl("div", { cls: "practice-stem material-card flat-card" });
+      yield import_obsidian2.MarkdownRenderer.renderMarkdown(stemText, stemEl, qMeta.file.path, this);
       const choicesEl = container.createEl("div", { cls: "practice-choices" });
-      for (const choice of this.plugin.activeChoices) {
-        const row = choicesEl.createEl("div", { cls: "practice-choice material-card" });
-        if (this.plugin.selectedChoices.has(choice.char))
+      for (const choice of this.plugin.session.activeChoices) {
+        const row = choicesEl.createEl("div", { cls: "practice-choice material-card flat-card" });
+        if (this.plugin.session.selectedChoices.has(choice.char))
           row.addClass("practice-selected-choice");
         row.onclick = () => {
-          if (this.plugin.showingAnswer) {
+          if (this.plugin.buttonManager.isUnlocked)
+            return;
+          if (this.plugin.session.showingAnswer) {
             if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
-              this.plugin.nextQuestion(true);
+              this.plugin.session.nextQuestion(true);
             }
             return;
           }
           if (isSingle) {
             const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
-            this.plugin.handleGrading(qMeta, isCorrect, choice.char);
+            this.plugin.session.handleGrading(qMeta, isCorrect, choice.char);
           } else {
             this.toggleChoice(choice.char);
           }
         };
         const marker = row.createEl("span", { text: `${choice.char}. `, cls: "practice-choice-marker" });
-        if (this.plugin.selectedChoices.has(choice.char))
+        if (this.plugin.session.selectedChoices.has(choice.char))
           marker.setText("\u2713 ");
-        yield import_obsidian.MarkdownRenderer.renderMarkdown(choice.text, row, qMeta.file.path, this);
-        if (this.plugin.showingAnswer && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+        yield import_obsidian2.MarkdownRenderer.renderMarkdown(choice.text, row, qMeta.file.path, this);
+        if (this.plugin.session.showingAnswer && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
           row.addClass("practice-correct-choice");
-          row.addClass("material-card-elevated");
         }
       }
-      const actions = container.createEl("div", { cls: "practice-actions" });
-      if (import_obsidian.Platform.isMobile && !this.plugin.showingAnswer) {
-        const mobileBtnRow = container.createEl("div", { cls: "practice-mobile-btns" });
-        this.plugin.activeChoices.forEach((choice) => {
-          const btn = mobileBtnRow.createEl("button", { text: choice.char, cls: "practice-mobile-key" });
-          if (this.plugin.selectedChoices.has(choice.char))
-            btn.addClass("is-selected");
-          btn.onclick = () => {
-            if (this.plugin.showingAnswer) {
-              if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
-                this.plugin.nextQuestion(true);
-              }
-              return;
-            }
-            if (isSingle) {
-              const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
-              this.plugin.handleGrading(qMeta, isCorrect, choice.char);
-            } else {
-              this.toggleChoice(choice.char);
-            }
-          };
-        });
-      }
-      if (this.plugin.showingAnswer) {
+      if (this.plugin.session.showingAnswer) {
         container.createEl("div", { text: `Answer: ${qMeta.answer}`, cls: "practice-answer-reveal" });
-        if (!isSingle) {
-          const nextBtn = actions.createEl("button", { text: "Next Question =>", cls: "practice-btn-wrong" });
-          nextBtn.onclick = () => this.plugin.nextQuestion(true);
-          const submitBtn = actions.createEl("button", { text: "Submit (Corrected)", cls: "practice-btn-submit" });
-          submitBtn.onclick = () => {
-            const selected = Array.from(this.plugin.selectedChoices).sort().join("");
-            if (selected.toUpperCase() === qMeta.answer.toUpperCase()) {
-              this.plugin.nextQuestion(true);
-            }
-          };
-        }
-      } else {
-        if (!isSingle) {
-          const submitBtn = actions.createEl("button", { text: "Submit Answer", cls: "practice-btn-submit" });
-          submitBtn.onclick = () => this.gradeMultipleChoice();
-        }
-        const showBtn = actions.createEl("button", { text: "(S)how Answer", cls: "practice-btn-show" });
-        showBtn.onclick = () => {
-          this.plugin.showingAnswer = true;
-          this.plugin.refreshAllViews();
-        };
-        const skipBtn = actions.createEl("button", { text: "Skip (N)", cls: "practice-btn-skip" });
-        skipBtn.onclick = () => this.setMastered(qMeta);
       }
+      this.renderFloatingButtons(container, qMeta, isSingle);
     });
   }
+  renderFloatingButtons(container, qMeta, isSingle) {
+    const floatingCanvas = container.createEl("div", { cls: "practice-floating-canvas" });
+    floatingCanvas.style.position = "absolute";
+    floatingCanvas.style.top = "0";
+    floatingCanvas.style.left = "0";
+    floatingCanvas.style.width = "100%";
+    floatingCanvas.style.height = "100%";
+    floatingCanvas.style.pointerEvents = "none";
+    const mountDraggable = (id, text, cls, onClick) => {
+      const btn = new DraggableButton(floatingCanvas, this.plugin.buttonManager, id, text, `practice-flat-btn ${cls}`, onClick);
+      btn.containerEl.style.pointerEvents = "auto";
+      return btn;
+    };
+    this.choiceButtons = [];
+    this.plugin.session.activeChoices.forEach((choice, index) => {
+      const baseId = `btn_choice_${choice.char}`;
+      const clsList = this.plugin.session.selectedChoices.has(choice.char) ? "is-selected practice-btn-choice" : "practice-btn-choice";
+      const btn = mountDraggable(baseId, choice.char, clsList, () => {
+        if (this.plugin.session.showingAnswer) {
+          if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
+            this.plugin.session.nextQuestion(true);
+          }
+          return;
+        }
+        if (isSingle) {
+          const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
+          this.plugin.session.handleGrading(qMeta, isCorrect, choice.char);
+        } else {
+          this.toggleChoice(choice.char);
+        }
+      });
+      this.choiceButtons.push(btn);
+    });
+    this.actionButtons = [];
+    if (this.plugin.session.showingAnswer) {
+      if (!isSingle) {
+        this.actionButtons.push(mountDraggable("btn_next", "Next = >", "practice-btn-wrong", () => {
+          this.plugin.session.nextQuestion(true);
+        }));
+        this.actionButtons.push(mountDraggable("btn_submit_corrected", "Submit (Corrected)", "practice-btn-submit", () => {
+          const selected = Array.from(this.plugin.session.selectedChoices).sort().join("");
+          if (selected.toUpperCase() === qMeta.answer.toUpperCase()) {
+            this.plugin.session.nextQuestion(true);
+          }
+        }));
+      }
+    } else {
+      if (!isSingle) {
+        this.actionButtons.push(mountDraggable("btn_submit", "Submit Answer", "practice-btn-submit", () => {
+          this.gradeMultipleChoice();
+        }));
+      }
+      this.actionButtons.push(mountDraggable("btn_show", "(S)how Answer", "practice-btn-show", () => {
+        this.plugin.session.showingAnswer = true;
+        this.plugin.refreshAllViews();
+      }));
+      this.actionButtons.push(mountDraggable("btn_skip", "Skip (N)", "practice-btn-skip", () => {
+        this.setMastered(qMeta);
+      }));
+    }
+    let unpositionedOffset = 0;
+    const defaultPositions = (btnElements, startX, y) => {
+      btnElements.forEach((btn, idx) => {
+        if (!this.plugin.buttonManager.getPosition(btn["buttonId"])) {
+          btn.containerEl.style.transform = `translate(${startX + unpositionedOffset}px, ${y}px)`;
+          unpositionedOffset += btn.containerEl.offsetWidth + 10 || 50;
+        }
+      });
+    };
+  }
 };
-var QueueControlView = class extends import_obsidian.ItemView {
+
+// src/views/QueueControlView.ts
+var import_obsidian3 = require("obsidian");
+var QueueControlView = class extends import_obsidian3.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -702,13 +654,13 @@ var QueueControlView = class extends import_obsidian.ItemView {
     const row1 = parent.createEl("div", { cls: "practice-toolbar-row" });
     row1.createEl("span", { text: "Category:" });
     const catSelect = row1.createEl("select");
-    this.plugin.categories.forEach((cat) => {
+    this.plugin.session.categories.forEach((cat) => {
       const opt = catSelect.createEl("option", { text: cat, value: cat });
-      if (cat === this.plugin.filterCategory)
+      if (cat === this.plugin.session.filterCategory)
         opt.selected = true;
     });
     catSelect.onchange = () => {
-      this.plugin.filterCategory = catSelect.value;
+      this.plugin.session.filterCategory = catSelect.value;
       this.plugin.refreshQueue();
     };
     const row2 = parent.createEl("div", { cls: "practice-toolbar-row" });
@@ -717,15 +669,15 @@ var QueueControlView = class extends import_obsidian.ItemView {
     const famSlider = sliderContainer.createEl("input", { type: "range", cls: "vertical-slider" });
     famSlider.min = "0";
     famSlider.max = "100";
-    famSlider.value = this.plugin.filterFamiliarity.toString();
+    famSlider.value = this.plugin.session.filterFamiliarity.toString();
     famSlider.setAttribute("orient", "vertical");
     const famLabel = sliderContainer.createEl("span", {
-      text: `${this.plugin.filterFamiliarity.toFixed(0)}%`,
+      text: `${this.plugin.session.filterFamiliarity.toFixed(0)}%`,
       cls: "vertical-slider-label"
     });
     famSlider.oninput = () => famLabel.setText(`${famSlider.value}%`);
     famSlider.onchange = () => {
-      this.plugin.filterFamiliarity = parseInt(famSlider.value);
+      this.plugin.session.filterFamiliarity = parseInt(famSlider.value);
       this.plugin.refreshQueue();
     };
   }
@@ -798,11 +750,11 @@ var QueueControlView = class extends import_obsidian.ItemView {
   renderQueueList(parent) {
     parent.createEl("h4", { text: "Queue", cls: "sidebar-section-header" });
     const list = parent.createEl("div", { cls: "practice-queue-list" });
-    this.plugin.currentQueue.forEach((q, idx) => {
+    this.plugin.session.currentQueue.forEach((q, idx) => {
       const item = list.createEl("div", { cls: "practice-queue-item" });
-      if (idx === this.plugin.currentQIndex)
+      if (idx === this.plugin.session.currentQIndex)
         item.addClass("is-active");
-      const result = this.plugin.sessionResults.get(q.file.path);
+      const result = this.plugin.session.sessionResults.get(q.file.path);
       if (result === "correct")
         item.addClass("is-correct");
       else if (result === "wrong")
@@ -813,20 +765,23 @@ var QueueControlView = class extends import_obsidian.ItemView {
       const famMarker = item.createEl("div", { cls: "practice-queue-item-fam-dot" });
       famMarker.style.backgroundColor = `hsl(${hue}, 80%, 45%)`;
       item.onclick = () => {
-        this.plugin.currentQIndex = idx;
-        this.plugin.isFinished = false;
-        this.plugin.showingAnswer = false;
-        this.plugin.selectedChoices.clear();
+        this.plugin.session.currentQIndex = idx;
+        this.plugin.session.isFinished = false;
+        this.plugin.session.showingAnswer = false;
+        this.plugin.session.selectedChoices.clear();
         this.plugin.saveSession();
         this.plugin.refreshAllViews();
       };
-      if (idx === this.plugin.currentQIndex) {
+      if (idx === this.plugin.session.currentQIndex) {
         setTimeout(() => item.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
       }
     });
   }
 };
-var PracticeSettingTab = class extends import_obsidian.PluginSettingTab {
+
+// src/settings/PracticeSettingTab.ts
+var import_obsidian4 = require("obsidian");
+var PracticeSettingTab = class extends import_obsidian4.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -835,11 +790,222 @@ var PracticeSettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Practice Plugin Settings" });
-    containerEl.createEl("p", { text: "All practice settings (filters, re-insertion offsets, and visual preferences) are now located in the Practice Control sidebar for easier access during practice sessions." });
+    containerEl.createEl("p", { text: "Other practice settings (filters, re-insertion offsets, and visual preferences) are located in the Practice Control sidebar during practice sessions." });
+    new import_obsidian4.Setting(containerEl).setName("Unlock Button Layout").setDesc("Enable this to drag and move buttons (A/B/C/D and actions) in the Practice View. Turn off to resume normal practice mode.").addToggle((toggle) => toggle.setValue(this.plugin.settings.unlockButtonLayout).onChange((value) => __async(this, null, function* () {
+      this.plugin.settings.unlockButtonLayout = value;
+      yield this.plugin.saveSettings();
+      this.plugin.refreshAllViews();
+    })));
   }
 };
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  VIEW_TYPE_CONTROL,
-  VIEW_TYPE_PRACTICE
-});
+
+// main.ts
+var PracticePlugin = class extends import_obsidian5.Plugin {
+  onload() {
+    return __async(this, null, function* () {
+      yield this.loadSettings();
+      this.session = new PracticeSession(this);
+      this.buttonManager = new ButtonLayoutManager(this);
+      this.registerView(
+        VIEW_TYPE_PRACTICE,
+        (leaf) => new PracticeView(leaf, this)
+      );
+      this.registerView(
+        VIEW_TYPE_CONTROL,
+        (leaf) => new QueueControlView(leaf, this)
+      );
+      this.addRibbonIcon("check-square", "Open Practice Mode", () => {
+        this.activateView();
+      });
+      this.addCommand({
+        id: "open-practice-view",
+        name: "Open Practice View",
+        callback: () => this.activateView()
+      });
+      this.addCommand({
+        id: "open-practice-control",
+        name: "Open Practice Control Sidebar",
+        callback: () => this.activateControlView()
+      });
+      this.addSettingTab(new PracticeSettingTab(this.app, this));
+      this.registerEvent(
+        this.app.workspace.on("file-open", (file) => this.onFileOpen(file))
+      );
+      if (this.settings.savedQueuePaths.length > 0) {
+        yield this.restoreSession();
+      } else {
+        this.refreshQueue();
+      }
+    });
+  }
+  onFileOpen(file) {
+    return __async(this, null, function* () {
+      var _a;
+      if (!file)
+        return;
+      const cache = this.app.metadataCache.getFileCache(file);
+      if (((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.type) === "practice_session") {
+        yield this.loadSessionFromFile(file);
+      }
+    });
+  }
+  loadSessionFromFile(file) {
+    return __async(this, null, function* () {
+      var _a, _b;
+      const content = yield this.app.vault.read(file);
+      const cache = this.app.metadataCache.getFileCache(file);
+      const fm = (cache == null ? void 0 : cache.frontmatter) || {};
+      this.session.filterCategory = fm.category || "All";
+      this.session.currentQIndex = fm.currentIndex || 0;
+      this.session.isFinished = fm.isFinished || false;
+      this.session.currentQueue = [];
+      const linkRegex = /\[\[(.*?)(?:\|.*?)?\]\]/g;
+      let match;
+      while ((match = linkRegex.exec(content)) !== null) {
+        const path = match[1];
+        const qFile = this.app.vault.getAbstractFileByPath(path);
+        if (qFile instanceof import_obsidian5.TFile) {
+          const qCache = this.app.metadataCache.getFileCache(qFile);
+          const qFm = (qCache == null ? void 0 : qCache.frontmatter) || {};
+          this.session.currentQueue.push({
+            file: qFile,
+            id: qFm.id || 0,
+            familiarity: (_a = qFm.familiarity) != null ? _a : 50,
+            answer: ((_b = qFm.answer) == null ? void 0 : _b.toString()) || ""
+          });
+        }
+      }
+      if (this.session.currentQueue.length > 0) {
+        yield this.saveSession();
+        yield this.activateView();
+        this.refreshAllViews();
+      }
+    });
+  }
+  loadSettings() {
+    return __async(this, null, function* () {
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, yield this.loadData());
+      if (!this.settings.buttonLayouts) {
+        this.settings.buttonLayouts = {};
+      }
+    });
+  }
+  saveSettings() {
+    return __async(this, null, function* () {
+      yield this.saveData(this.settings);
+    });
+  }
+  activateView() {
+    return __async(this, null, function* () {
+      const { workspace } = this.app;
+      let leaf = workspace.getLeavesOfType(VIEW_TYPE_PRACTICE)[0];
+      if (!leaf) {
+        leaf = workspace.getLeaf("tab");
+        yield leaf.setViewState({ type: VIEW_TYPE_PRACTICE, active: true });
+      }
+      workspace.revealLeaf(leaf);
+      this.activateControlView();
+    });
+  }
+  activateControlView() {
+    return __async(this, null, function* () {
+      const { workspace } = this.app;
+      let leaf = workspace.getLeavesOfType(VIEW_TYPE_CONTROL)[0];
+      if (!leaf) {
+        leaf = workspace.getRightLeaf(false);
+        if (leaf) {
+          yield leaf.setViewState({ type: VIEW_TYPE_CONTROL, active: true });
+        }
+      }
+      if (leaf)
+        workspace.revealLeaf(leaf);
+    });
+  }
+  refreshAllViews() {
+    return __async(this, null, function* () {
+      this.app.workspace.getLeavesOfType(VIEW_TYPE_PRACTICE).forEach((l) => l.view.render());
+      this.app.workspace.getLeavesOfType(VIEW_TYPE_CONTROL).forEach((l) => l.view.render());
+    });
+  }
+  refreshQueue() {
+    var _a, _b;
+    this.session.currentQueue = [];
+    const files = this.app.vault.getMarkdownFiles();
+    const cats = /* @__PURE__ */ new Set();
+    for (const file of files) {
+      const cache = this.app.metadataCache.getFileCache(file);
+      const tags = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.tags) || [];
+      const tagArray = Array.isArray(tags) ? tags : [tags];
+      if (tagArray.some((t) => String(t).includes("q"))) {
+        const fm = cache.frontmatter;
+        const category = fm.category || "Uncategorized";
+        cats.add(category);
+        if (this.session.filterCategory !== "All" && category !== this.session.filterCategory)
+          continue;
+        let fam = fm.familiarity;
+        if (fam === void 0 || fam === null)
+          fam = 50;
+        if (fam > this.session.filterFamiliarity)
+          continue;
+        if (fam < 100) {
+          this.session.currentQueue.push({
+            file,
+            id: fm.id,
+            familiarity: fam,
+            answer: ((_b = fm.answer) == null ? void 0 : _b.toString()) || ""
+          });
+        }
+      }
+    }
+    this.session.categories = ["All", ...Array.from(cats).sort()];
+    this.session.currentQueue.sort((a, b) => a.familiarity - b.familiarity);
+    this.session.currentQIndex = 0;
+    this.session.isFinished = false;
+    this.session.showingAnswer = false;
+    this.session.selectedChoices.clear();
+    this.saveSession();
+    this.refreshAllViews();
+  }
+  saveSession() {
+    return __async(this, null, function* () {
+      this.settings.savedQueuePaths = this.session.currentQueue.map((q) => q.file.path);
+      this.settings.savedIndex = this.session.currentQIndex;
+      yield this.saveSettings();
+    });
+  }
+  restoreSession() {
+    return __async(this, null, function* () {
+      var _a, _b, _c, _d;
+      const paths = this.settings.savedQueuePaths;
+      const index = this.settings.savedIndex;
+      this.session.currentQueue = [];
+      for (const path of paths) {
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (file instanceof import_obsidian5.TFile) {
+          const cache = this.app.metadataCache.getFileCache(file);
+          const fm = (cache == null ? void 0 : cache.frontmatter) || {};
+          this.session.currentQueue.push({
+            file,
+            id: fm.id || 0,
+            familiarity: (_a = fm.familiarity) != null ? _a : 50,
+            answer: ((_b = fm.answer) == null ? void 0 : _b.toString()) || ""
+          });
+        }
+      }
+      this.session.currentQIndex = index;
+      if (this.session.currentQIndex >= this.session.currentQueue.length) {
+        this.session.currentQIndex = 0;
+      }
+      const files = this.app.vault.getMarkdownFiles();
+      const cats = /* @__PURE__ */ new Set();
+      for (const file of files) {
+        const cache = this.app.metadataCache.getFileCache(file);
+        const tags = ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c.tags) || [];
+        if (Array.isArray(tags) ? tags.includes("q") : tags === "q") {
+          cats.add(((_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d.category) || "Uncategorized");
+        }
+      }
+      this.session.categories = ["All", ...Array.from(cats).sort()];
+    });
+  }
+};

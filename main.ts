@@ -1,65 +1,23 @@
-import {
-    App,
-    ItemView,
-    Plugin,
-    WorkspaceLeaf,
-    MarkdownRenderer,
-    TFile,
-    moment,
-    Setting,
-    PluginSettingTab,
-    TFolder,
-    Platform
-} from 'obsidian';
-
-export const VIEW_TYPE_PRACTICE = 'practice-view';
-export const VIEW_TYPE_CONTROL = 'queue-control-view';
-
-interface QuestionMeta {
-    file: TFile;
-    id: number;
-    familiarity: number;
-    answer: string;
-}
-
-interface PracticeSettings {
-    failOffsets: string;
-    savedQueuePaths: string[];
-    savedIndex: number;
-    fontSize: number;
-    textColor: string;
-    bgColor: string;
-}
-
-const DEFAULT_SETTINGS: PracticeSettings = {
-    failOffsets: "3, 10, -1",
-    savedQueuePaths: [],
-    savedIndex: 0,
-    fontSize: 16,
-    textColor: "var(--text-normal)",
-    bgColor: "var(--background-primary)"
-};
+import { Plugin, TFile } from 'obsidian';
+import { PracticeSession } from './src/models/PracticeSession';
+import { ButtonLayoutManager } from './src/managers/ButtonLayoutManager';
+import { PracticeView } from './src/views/PracticeView';
+import { QueueControlView } from './src/views/QueueControlView';
+import { PracticeSettingTab } from './src/settings/PracticeSettingTab';
+import { VIEW_TYPE_PRACTICE, VIEW_TYPE_CONTROL, PracticeSettings, DEFAULT_SETTINGS } from './src/types';
 
 export default class PracticePlugin extends Plugin {
     settings: PracticeSettings;
-
-    // Shared State
-    currentQueue: QuestionMeta[] = [];
-    currentQIndex: number = 0;
-    isFinished: boolean = false;
-    showingAnswer: boolean = false;
-    correctAnswers: number = 0;
-    wrongAnswers: number = 0;
     
-    filterCategory: string = "All";
-    filterFamiliarity: number = 100;
-    categories: string[] = ["All"];
-    sessionResults: Map<string, 'correct' | 'wrong'> = new Map();
-    selectedChoices: Set<string> = new Set();
-    activeChoices: { char: string, text: string }[] = [];
+    session: PracticeSession;
+    buttonManager: ButtonLayoutManager;
 
     async onload() {
         await this.loadSettings();
+
+        // Initialize Managers and Models
+        this.session = new PracticeSession(this);
+        this.buttonManager = new ButtonLayoutManager(this);
 
         this.registerView(
             VIEW_TYPE_PRACTICE,
@@ -115,12 +73,12 @@ export default class PracticePlugin extends Plugin {
         const cache = this.app.metadataCache.getFileCache(file);
         const fm = cache?.frontmatter || {};
 
-        this.filterCategory = fm.category || "All";
-        this.currentQIndex = fm.currentIndex || 0;
-        this.isFinished = fm.isFinished || false;
+        this.session.filterCategory = fm.category || "All";
+        this.session.currentQIndex = fm.currentIndex || 0;
+        this.session.isFinished = fm.isFinished || false;
 
         // Parse links from content
-        this.currentQueue = [];
+        this.session.currentQueue = [];
         const linkRegex = /\[\[(.*?)(?:\|.*?)?\]\]/g;
         let match;
         while ((match = linkRegex.exec(content)) !== null) {
@@ -129,7 +87,7 @@ export default class PracticePlugin extends Plugin {
             if (qFile instanceof TFile) {
                 const qCache = this.app.metadataCache.getFileCache(qFile);
                 const qFm = qCache?.frontmatter || {};
-                this.currentQueue.push({
+                this.session.currentQueue.push({
                     file: qFile,
                     id: qFm.id || 0,
                     familiarity: qFm.familiarity ?? 50,
@@ -138,7 +96,7 @@ export default class PracticePlugin extends Plugin {
             }
         }
 
-        if (this.currentQueue.length > 0) {
+        if (this.session.currentQueue.length > 0) {
             await this.saveSession();
             await this.activateView();
             this.refreshAllViews();
@@ -147,6 +105,10 @@ export default class PracticePlugin extends Plugin {
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        // Initialize layout maps if upgrading
+        if (!this.settings.buttonLayouts) {
+            this.settings.buttonLayouts = {};
+        }
     }
 
     async saveSettings() {
@@ -155,29 +117,22 @@ export default class PracticePlugin extends Plugin {
 
     async activateView() {
         const { workspace } = this.app;
-        let leaf: WorkspaceLeaf | null = null;
-        const leaves = workspace.getLeavesOfType(VIEW_TYPE_PRACTICE);
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_PRACTICE)[0];
 
-        if (leaves.length > 0) {
-            leaf = leaves[0];
-        } else {
+        if (!leaf) {
             leaf = workspace.getLeaf('tab');
             await leaf.setViewState({ type: VIEW_TYPE_PRACTICE, active: true });
         }
         workspace.revealLeaf(leaf);
         
-        // Also open controls if not open
         this.activateControlView();
     }
 
     async activateControlView() {
         const { workspace } = this.app;
-        let leaf: WorkspaceLeaf | null = null;
-        const leaves = workspace.getLeavesOfType(VIEW_TYPE_CONTROL);
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_CONTROL)[0];
 
-        if (leaves.length > 0) {
-            leaf = leaves[0];
-        } else {
+        if (!leaf) {
             leaf = workspace.getRightLeaf(false);
             if (leaf) {
                 await leaf.setViewState({ type: VIEW_TYPE_CONTROL, active: true });
@@ -192,7 +147,7 @@ export default class PracticePlugin extends Plugin {
     }
 
     refreshQueue() {
-        this.currentQueue = [];
+        this.session.currentQueue = [];
         const files = this.app.vault.getMarkdownFiles();
         const cats = new Set<string>();
 
@@ -206,14 +161,14 @@ export default class PracticePlugin extends Plugin {
                 const category = fm.category || "Uncategorized";
                 cats.add(category);
 
-                if (this.filterCategory !== "All" && category !== this.filterCategory) continue;
+                if (this.session.filterCategory !== "All" && category !== this.session.filterCategory) continue;
 
                 let fam = fm.familiarity;
                 if (fam === undefined || fam === null) fam = 50;
-                if (fam > this.filterFamiliarity) continue;
+                if (fam > this.session.filterFamiliarity) continue;
 
                 if (fam < 100) {
-                    this.currentQueue.push({
+                    this.session.currentQueue.push({
                         file,
                         id: fm.id,
                         familiarity: fam,
@@ -223,19 +178,19 @@ export default class PracticePlugin extends Plugin {
             }
         }
 
-        this.categories = ["All", ...Array.from(cats).sort()];
-        this.currentQueue.sort((a, b) => a.familiarity - b.familiarity);
-        this.currentQIndex = 0;
-        this.isFinished = false;
-        this.showingAnswer = false;
-        this.selectedChoices.clear();
+        this.session.categories = ["All", ...Array.from(cats).sort()];
+        this.session.currentQueue.sort((a, b) => a.familiarity - b.familiarity);
+        this.session.currentQIndex = 0;
+        this.session.isFinished = false;
+        this.session.showingAnswer = false;
+        this.session.selectedChoices.clear();
         this.saveSession();
         this.refreshAllViews();
     }
 
     async saveSession() {
-        this.settings.savedQueuePaths = this.currentQueue.map(q => q.file.path);
-        this.settings.savedIndex = this.currentQIndex;
+        this.settings.savedQueuePaths = this.session.currentQueue.map(q => q.file.path);
+        this.settings.savedIndex = this.session.currentQIndex;
         await this.saveSettings();
     }
 
@@ -243,13 +198,13 @@ export default class PracticePlugin extends Plugin {
         const paths = this.settings.savedQueuePaths;
         const index = this.settings.savedIndex;
 
-        this.currentQueue = [];
+        this.session.currentQueue = [];
         for (const path of paths) {
             const file = this.app.vault.getAbstractFileByPath(path);
             if (file instanceof TFile) {
                 const cache = this.app.metadataCache.getFileCache(file);
                 const fm = cache?.frontmatter || {};
-                this.currentQueue.push({
+                this.session.currentQueue.push({
                     file,
                     id: fm.id || 0,
                     familiarity: fm.familiarity ?? 50,
@@ -258,9 +213,9 @@ export default class PracticePlugin extends Plugin {
             }
         }
 
-        this.currentQIndex = index;
-        if (this.currentQIndex >= this.currentQueue.length) {
-            this.currentQIndex = 0;
+        this.session.currentQIndex = index;
+        if (this.session.currentQIndex >= this.session.currentQueue.length) {
+            this.session.currentQIndex = 0;
         }
 
         const files = this.app.vault.getMarkdownFiles();
@@ -272,601 +227,6 @@ export default class PracticePlugin extends Plugin {
                 cats.add(cache?.frontmatter?.category || "Uncategorized");
             }
         }
-        this.categories = ["All", ...Array.from(cats).sort()];
-    }
-
-    async autosaveSession() {
-        const timestamp = (moment as any)().format("YYYY-MM-DD_HH-mm-ss");
-        const folderPath = "Practice_Sessions";
-        if (!(this.app.vault.getAbstractFileByPath(folderPath) instanceof TFolder)) {
-            await this.app.vault.createFolder(folderPath);
-        }
-
-        const fileName = this.filterCategory.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const path = `${folderPath}/autosave_${fileName}.md`;
-        
-        const links = this.currentQueue.map(q => `[[${q.file.path}|${q.file.basename}]]`).join('\n');
-        const content = `---
-type: practice_session
-currentIndex: ${this.currentQIndex}
-isFinished: ${this.isFinished}
-category: ${this.filterCategory}
-timestamp: ${timestamp}
----
-# Autosaved Session - ${this.filterCategory}
-
-#practice_resume
-
-## Queue
-${links}`;
-
-        const existingFile = this.app.vault.getAbstractFileByPath(path);
-        if (existingFile instanceof TFile) {
-            await this.app.vault.modify(existingFile, content);
-        } else {
-            await this.app.vault.create(path, content);
-        }
-    }
-
-    async handleGrading(qMeta: QuestionMeta, isCorrect: boolean, answerStr: string) {
-        const f = qMeta.familiarity;
-        const newFam = isCorrect ? 100 - ((100 - f) / 3) * 2 : f / 3;
-        qMeta.familiarity = newFam;
-
-        await this.app.fileManager.processFrontMatter(qMeta.file, (fm) => { fm.familiarity = newFam; });
-        await this.recordHistory(qMeta, isCorrect, answerStr);
-
-        this.sessionResults.set(qMeta.file.path, isCorrect ? 'correct' : 'wrong');
-        if (isCorrect) {
-            this.correctAnswers++;
-            this.nextQuestion(false);
-        } else {
-            this.wrongAnswers++;
-            this.showingAnswer = true;
-            this.refreshAllViews();
-        }
-        await this.autosaveSession();
-    }
-
-    async recordHistory(qMeta: QuestionMeta, isCorrect: boolean, answerStr: string) {
-        const ts = (moment as any)().format("YYYY-MM-DD HH:mm:ss");
-        const status = isCorrect ? "✅" : "❌";
-        const content = await this.app.vault.read(qMeta.file);
-        let newContent = content;
-        const line = `| ${ts} | ${answerStr} | ${status} |`;
-        if (content.includes('# Practice History')) {
-            newContent += `\n${line}`;
-        } else {
-            newContent += `\n\n# Practice History\n| Date | Selected | Correct? |\n|---|---|---|\n${line}`;
-        }
-        await this.app.vault.modify(qMeta.file, newContent);
-    }
-
-    nextQuestion(wrong: boolean) {
-        if (wrong) {
-            const qMeta = this.currentQueue[this.currentQIndex];
-            this.currentQueue.splice(this.currentQIndex, 1);
-
-            const rawOffsets = this.settings?.failOffsets || "3, 10, -1";
-            const offsets = rawOffsets.split(',')
-                .map(s => parseInt(s.trim()))
-                .filter(n => !isNaN(n));
-
-            for (const offset of offsets) {
-                let targetIdx: number;
-                if (offset === -1) {
-                    targetIdx = this.currentQueue.length;
-                } else {
-                    targetIdx = this.currentQIndex + offset;
-                }
-
-                if (targetIdx < 0) targetIdx = 0;
-                if (targetIdx > this.currentQueue.length) targetIdx = this.currentQueue.length;
-
-                this.currentQueue.splice(targetIdx, 0, qMeta);
-            }
-        } else {
-            if (this.currentQIndex >= this.currentQueue.length - 1) {
-                this.isFinished = true;
-            } else {
-                this.currentQIndex++;
-            }
-        }
-
-        this.showingAnswer = false;
-        this.selectedChoices.clear();
-        this.saveSession();
-        this.refreshAllViews();
-    }
-}
-
-class PracticeView extends ItemView {
-    plugin: PracticePlugin;
-    boundKeydownHandler: (e: KeyboardEvent) => void;
-
-    constructor(leaf: WorkspaceLeaf, plugin: PracticePlugin) {
-        super(leaf);
-        this.plugin = plugin;
-        this.boundKeydownHandler = this.onKeydown.bind(this);
-    }
-
-    getViewType() { return VIEW_TYPE_PRACTICE; }
-    getDisplayText() { return 'Practice Question'; }
-    getIcon() { return 'check-square'; }
-
-    async onOpen() {
-        document.addEventListener('keydown', this.boundKeydownHandler);
-        await this.render();
-    }
-
-    async onClose() {
-        document.removeEventListener('keydown', this.boundKeydownHandler);
-    }
-
-    onKeydown(e: KeyboardEvent) {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-        if (this.app.workspace.activeLeaf?.view !== this) return;
-
-        const key = e.key.toLowerCase();
-        
-        if (key === 'escape') {
-            // Revert: Remove escape detach logic as requested
-            return;
-        }
-
-        const q = this.plugin.currentQueue[this.plugin.currentQIndex];
-        if (!q) return;
-
-        if (this.plugin.showingAnswer) {
-            if (key === 'enter' || key === ' ') {
-                this.plugin.nextQuestion(true);
-                e.preventDefault();
-            }
-        } else {
-            const letters = ['a', 'b', 'c', 'd', 'e', 'f'];
-            const idx = letters.indexOf(key);
-            if (idx !== -1 && idx < this.plugin.activeChoices.length) {
-                this.toggleChoice(key.toUpperCase());
-                e.preventDefault();
-                return;
-            }
-
-            const num = parseInt(key, 10);
-            if (!isNaN(num) && num >= 1 && num <= this.plugin.activeChoices.length) {
-                const choiceChar = letters[num - 1].toUpperCase();
-                this.toggleChoice(choiceChar);
-                e.preventDefault();
-                return;
-            }
-
-            if (key === 's') {
-                this.plugin.showingAnswer = true;
-                this.render();
-                e.preventDefault();
-            } else if (key === 'n') {
-                this.setMastered(q);
-                e.preventDefault();
-            } else if (key === 'enter' && this.plugin.selectedChoices.size > 0) {
-                this.gradeMultipleChoice();
-                e.preventDefault();
-            }
-        }
-    }
-
-    private toggleChoice(char: string) {
-        if (this.plugin.selectedChoices.has(char)) {
-            this.plugin.selectedChoices.delete(char);
-        } else {
-            this.plugin.selectedChoices.add(char);
-        }
-        this.render();
-    }
-
-    private gradeMultipleChoice() {
-        const q = this.plugin.currentQueue[this.plugin.currentQIndex];
-        const selected = Array.from(this.plugin.selectedChoices).sort().join('');
-        const isCorrect = selected.toUpperCase() === q.answer.toUpperCase();
-        this.plugin.handleGrading(q, isCorrect, selected);
-    }
-
-    private async setMastered(qMeta: QuestionMeta) {
-        qMeta.familiarity = 100;
-        await this.app.fileManager.processFrontMatter(qMeta.file, (fm) => { fm.familiarity = 100; });
-        this.plugin.nextQuestion(false);
-        await this.plugin.autosaveSession();
-    }
-
-    async render() {
-        const container = this.contentEl;
-        container.empty();
-        container.addClass('practice-view-root');
-
-        if (this.plugin.isFinished) {
-            this.renderSummary(container);
-            return;
-        }
-
-        if (this.plugin.currentQueue.length === 0) {
-            container.createEl('h3', { text: 'Empty Queue! Start by selecting a category in the sidebar.' });
-            return;
-        }
-
-        const qMeta = this.plugin.currentQueue[this.plugin.currentQIndex];
-        if (!qMeta) return;
-
-        const mainLayout = container.createEl('div', { cls: 'practice-tab-layout' });
-        
-        // Vertical Progress Bar (VPB) - Now in PracticeView
-        const vpb = mainLayout.createEl('div', { cls: 'practice-vpb' });
-        this.plugin.currentQueue.forEach((q, idx) => {
-            const segment = vpb.createEl('div', { cls: 'vpb-segment' });
-            if (idx === this.plugin.currentQIndex) segment.addClass('is-active');
-            const result = this.plugin.sessionResults.get(q.file.path);
-            if (result === 'correct') segment.addClass('is-correct');
-            else if (result === 'wrong') segment.addClass('is-wrong');
-            
-            segment.onclick = () => {
-                this.plugin.currentQIndex = idx;
-                this.plugin.showingAnswer = false;
-                this.plugin.selectedChoices.clear();
-                this.plugin.saveSession();
-                this.plugin.refreshAllViews();
-            };
-        });
-
-        const questionContent = mainLayout.createEl('div', { cls: 'practice-question-container' });
-        
-        // Apply visual settings
-        questionContent.style.fontSize = `${this.plugin.settings.fontSize}px`;
-        questionContent.style.color = this.plugin.settings.textColor;
-        questionContent.style.backgroundColor = this.plugin.settings.bgColor;
-
-        await this.renderQuestion(questionContent, qMeta);
-    }
-
-    private renderSummary(container: HTMLElement) {
-        const summary = container.createEl('div', { cls: 'practice-summary-view' });
-        summary.createEl('h1', { text: 'Practice Finished!' });
-        
-        const stats = summary.createEl('div', { cls: 'practice-summary-stats' });
-        const correct = stats.createEl('div', { cls: 'stat-item stat-correct' });
-        correct.createEl('span', { text: this.plugin.correctAnswers.toString(), cls: 'stat-value' });
-        correct.createEl('span', { text: 'Correct', cls: 'stat-label' });
-
-        const wrong = stats.createEl('div', { cls: 'stat-item stat-wrong' });
-        wrong.createEl('span', { text: this.plugin.wrongAnswers.toString(), cls: 'stat-value' });
-        wrong.createEl('span', { text: 'Wrong / Skipped', cls: 'stat-label' });
-
-        const actions = summary.createEl('div', { cls: 'practice-summary-actions' });
-        const restartBtn = actions.createEl('button', { text: 'Restart Queue', cls: 'practice-btn-restart' });
-        restartBtn.onclick = async () => {
-            this.plugin.currentQIndex = 0;
-            this.plugin.isFinished = false;
-            this.plugin.correctAnswers = 0;
-            this.plugin.wrongAnswers = 0;
-            this.plugin.sessionResults.clear();
-            this.plugin.refreshAllViews();
-        };
-    }
-
-    private async renderHistoryBar(container: HTMLElement, qMeta: QuestionMeta) {
-        const content = await this.app.vault.read(qMeta.file);
-        const historyMatch = content.match(/\| Date \| Selected \| Correct\? \|\n\|---\|---\|---\|\n([\s\S]*?)(?:\n\n|\n$|$)/);
-        
-        const historyBar = container.createEl('div', { cls: 'practice-history-bar' });
-        if (historyMatch) {
-            const rows = historyMatch[1].trim().split('\n');
-            rows.forEach(row => {
-                const block = historyBar.createEl('div', { cls: 'history-block' });
-                if (row.includes('✅')) block.addClass('is-correct');
-                else if (row.includes('❌')) block.addClass('is-wrong');
-            });
-        }
-    }
-
-    private async renderQuestion(container: HTMLElement, qMeta: QuestionMeta) {
-        const content = await this.app.vault.cachedRead(qMeta.file);
-        const lines = content.split('\n');
-        const isSingle = qMeta.answer.length <= 1;
-
-        const firstChoiceIndex = lines.findIndex(l => /^- [A-Z] /.test(l));
-        const firstHeaderIndex = lines.findIndex(l => l.startsWith('# '));
-        
-        let stemText = "";
-        if (firstHeaderIndex !== -1 && firstHeaderIndex < firstChoiceIndex) {
-            // Include the header line content and everything until choices
-            stemText = lines.slice(firstHeaderIndex, firstChoiceIndex).join('\n').trim();
-            // Remove the leading '# ' from the first line for display if preferred, 
-            // but usually we want to render it as markdown.
-        }
-
-        this.plugin.activeChoices = [];
-        const choicesRegex = /^- ([A-Z]) (.*)$/gm;
-        let match;
-        while ((match = choicesRegex.exec(content)) !== null) {
-            this.plugin.activeChoices.push({ char: match[1], text: match[2].trim() });
-        }
-
-        const headerEl = container.createEl('div', { cls: 'practice-header' });
-        headerEl.createEl('span', { text: `Q: ${this.plugin.currentQIndex + 1} / ${this.plugin.currentQueue.length}` });
-        headerEl.createEl('span', { text: `Fam: ${qMeta.familiarity.toFixed(1)}%` });
-
-        // History Bar
-        await this.renderHistoryBar(container, qMeta);
-
-        const stemEl = container.createEl('div', { cls: 'practice-stem material-card' });
-        await MarkdownRenderer.renderMarkdown(stemText, stemEl, qMeta.file.path, this);
-
-        const choicesEl = container.createEl('div', { cls: 'practice-choices' });
-        for (const choice of this.plugin.activeChoices) {
-            const row = choicesEl.createEl('div', { cls: 'practice-choice material-card' });
-            if (this.plugin.selectedChoices.has(choice.char)) row.addClass('practice-selected-choice');
-
-            row.onclick = () => {
-                if (this.plugin.showingAnswer) {
-                    if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
-                        this.plugin.nextQuestion(true);
-                    }
-                    return;
-                }
-                if (isSingle) {
-                    const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
-                    this.plugin.handleGrading(qMeta, isCorrect, choice.char);
-                } else {
-                    this.toggleChoice(choice.char);
-                }
-            };
-
-            const marker = row.createEl('span', { text: `${choice.char}. `, cls: 'practice-choice-marker' });
-            if (this.plugin.selectedChoices.has(choice.char)) marker.setText('✓ ');
-
-            await MarkdownRenderer.renderMarkdown(choice.text, row, qMeta.file.path, this);
-            if (this.plugin.showingAnswer && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
-                row.addClass('practice-correct-choice');
-                row.addClass('material-card-elevated'); // Material elevate for correct
-            }
-        }
-
-        const actions = container.createEl('div', { cls: 'practice-actions' });
-        
-        if (Platform.isMobile && !this.plugin.showingAnswer) {
-            const mobileBtnRow = container.createEl('div', { cls: 'practice-mobile-btns' });
-            this.plugin.activeChoices.forEach(choice => {
-                const btn = mobileBtnRow.createEl('button', { text: choice.char, cls: 'practice-mobile-key' });
-                if (this.plugin.selectedChoices.has(choice.char)) btn.addClass('is-selected');
-                btn.onclick = () => {
-                    if (this.plugin.showingAnswer) {
-                        if (isSingle && qMeta.answer.toUpperCase().includes(choice.char.toUpperCase())) {
-                            this.plugin.nextQuestion(true);
-                        }
-                        return;
-                    }
-                    if (isSingle) {
-                        const isCorrect = qMeta.answer.toUpperCase().includes(choice.char.toUpperCase());
-                        this.plugin.handleGrading(qMeta, isCorrect, choice.char);
-                    } else {
-                        this.toggleChoice(choice.char);
-                    }
-                };
-            });
-        }
-
-        if (this.plugin.showingAnswer) {
-            container.createEl('div', { text: `Answer: ${qMeta.answer}`, cls: 'practice-answer-reveal' });
-            
-            // Re-add Next button for MCQs as requested
-            if (!isSingle) {
-                const nextBtn = actions.createEl('button', { text: 'Next Question =>', cls: 'practice-btn-wrong' });
-                nextBtn.onclick = () => this.plugin.nextQuestion(true);
-
-                const submitBtn = actions.createEl('button', { text: 'Submit (Corrected)', cls: 'practice-btn-submit' });
-                submitBtn.onclick = () => {
-                    const selected = Array.from(this.plugin.selectedChoices).sort().join('');
-                    if (selected.toUpperCase() === qMeta.answer.toUpperCase()) {
-                        this.plugin.nextQuestion(true);
-                    }
-                };
-            }
-        } else {
-            if (!isSingle) {
-                const submitBtn = actions.createEl('button', { text: 'Submit Answer', cls: 'practice-btn-submit' });
-                submitBtn.onclick = () => this.gradeMultipleChoice();
-            }
-            const showBtn = actions.createEl('button', { text: '(S)how Answer', cls: 'practice-btn-show' });
-            showBtn.onclick = () => { this.plugin.showingAnswer = true; this.plugin.refreshAllViews(); };
-
-            const skipBtn = actions.createEl('button', { text: 'Skip (N)', cls: 'practice-btn-skip' });
-            skipBtn.onclick = () => this.setMastered(qMeta);
-        }
-    }
-}
-
-class QueueControlView extends ItemView {
-    plugin: PracticePlugin;
-
-    constructor(leaf: WorkspaceLeaf, plugin: PracticePlugin) {
-        super(leaf);
-        this.plugin = plugin;
-    }
-
-    getViewType() { return VIEW_TYPE_CONTROL; }
-    getDisplayText() { return 'Queue Control'; }
-    getIcon() { return 'list'; }
-
-    async onOpen() { await this.render(); }
-
-    async render() {
-        const container = this.contentEl;
-        container.empty();
-        container.addClass('practice-control-root');
-
-        const toolbarEl = container.createEl('div', { cls: 'practice-sidebar-toolbar' });
-        this.renderToolbar(toolbarEl);
-
-        const settingsEl = container.createEl('div', { cls: 'practice-sidebar-settings' });
-        this.renderSettings(settingsEl);
-
-        const listEl = container.createEl('div', { cls: 'practice-sidebar-queue' });
-        this.renderQueueList(listEl);
-    }
-
-    private renderToolbar(parent: HTMLElement) {
-        parent.createEl('h4', { text: 'Filters', cls: 'sidebar-section-header' });
-        
-        const row1 = parent.createEl('div', { cls: 'practice-toolbar-row' });
-        row1.createEl('span', { text: 'Category:' });
-        const catSelect = row1.createEl('select');
-        this.plugin.categories.forEach(cat => {
-            const opt = catSelect.createEl('option', { text: cat, value: cat });
-            if (cat === this.plugin.filterCategory) opt.selected = true;
-        });
-        catSelect.onchange = () => {
-            this.plugin.filterCategory = catSelect.value;
-            this.plugin.refreshQueue();
-        };
-
-        const row2 = parent.createEl('div', { cls: 'practice-toolbar-row' });
-        row2.createEl('span', { text: 'Max Familiarity:' });
-        
-        const sliderContainer = row2.createEl('div', { cls: 'vertical-slider-container' });
-        const famSlider = sliderContainer.createEl('input', { type: 'range', cls: 'vertical-slider' });
-        famSlider.min = "0"; famSlider.max = "100";
-        famSlider.value = this.plugin.filterFamiliarity.toString();
-        // Since input[type=range] vertical orientation is browser dependent
-        famSlider.setAttribute('orient', 'vertical');
-
-        const famLabel = sliderContainer.createEl('span', { 
-            text: `${this.plugin.filterFamiliarity.toFixed(0)}%`,
-            cls: 'vertical-slider-label' 
-        });
-
-        famSlider.oninput = () => famLabel.setText(`${famSlider.value}%`);
-        famSlider.onchange = () => {
-            this.plugin.filterFamiliarity = parseInt(famSlider.value);
-            this.plugin.refreshQueue();
-        };
-    }
-
-    private renderSettings(parent: HTMLElement) {
-        parent.createEl('h4', { text: 'Practice Settings', cls: 'sidebar-section-header' });
-        
-        // Insert Position (Offsets)
-        const rowOffsets = parent.createEl('div', { cls: 'practice-sidebar-setting-row' });
-        rowOffsets.createEl('span', { text: 'Insert Position:', title: 'Offsets for re-inserting failed questions' });
-        const offsetInput = rowOffsets.createEl('input', { type: 'text', cls: 'setting-input-text' });
-        offsetInput.value = this.plugin.settings.failOffsets;
-        offsetInput.onchange = async () => {
-            this.plugin.settings.failOffsets = offsetInput.value;
-            await this.plugin.saveSettings();
-        };
-        rowOffsets.createEl('div', { text: 'e.g. 3, 10, -1 (Use -1 for end)', cls: 'setting-instruction' });
-
-        // Font Size (Visual Selector)
-        const rowSize = parent.createEl('div', { cls: 'practice-sidebar-setting-row' });
-        rowSize.createEl('span', { text: 'Font Size:' });
-        const sizeContainer = rowSize.createEl('div', { cls: 'font-size-selector' });
-        const sizes = [12, 14, 16, 18, 20, 24];
-        sizes.forEach(sz => {
-            const sample = sizeContainer.createEl('span', { text: 'A', cls: 'font-sample' });
-            sample.style.fontSize = `${sz}px`;
-            if (this.plugin.settings.fontSize === sz) sample.addClass('is-active');
-            sample.onclick = async () => {
-                this.plugin.settings.fontSize = sz;
-                await this.plugin.saveSettings();
-                this.plugin.refreshAllViews();
-            };
-        });
-
-        // Color Presets & custom text color
-        const rowColor = parent.createEl('div', { cls: 'practice-sidebar-setting-row' });
-        rowColor.createEl('span', { text: 'Visual Theme:' });
-        
-        const presetsContainer = rowColor.createEl('div', { cls: 'color-presets' });
-        const themes = [
-            { name: 'Default', text: 'var(--text-normal)', bg: 'var(--background-primary)' },
-            { name: 'Dark Blue', text: '#e0e0e0', bg: '#1a202c' },
-            { name: 'Sepia', text: '#5b4636', bg: '#f4ecd8' },
-            { name: 'Matrix', text: '#00ff00', bg: '#000000' },
-            { name: 'Clean', text: '#2d3748', bg: '#ffffff' }
-        ];
-
-        themes.forEach(t => {
-            const dot = presetsContainer.createEl('div', { cls: 'color-preset', title: t.name });
-            dot.style.backgroundColor = t.bg;
-            dot.onclick = async () => {
-                this.plugin.settings.textColor = t.text;
-                this.plugin.settings.bgColor = t.bg;
-                await this.plugin.saveSettings();
-                this.plugin.refreshAllViews();
-            };
-        });
-
-        const customRow = rowColor.createEl('div', { cls: 'practice-toolbar-row' });
-        customRow.style.marginTop = '8px';
-        const customTextSpan = customRow.createEl('span', { text: 'Custom Text:' });
-        customTextSpan.style.fontSize = '0.7em';
-        const colorInput = customRow.createEl('input', { type: 'color' });
-        colorInput.value = this.plugin.settings.textColor.startsWith('var') ? "#ffffff" : this.plugin.settings.textColor;
-        colorInput.onchange = async () => {
-            this.plugin.settings.textColor = colorInput.value;
-            await this.plugin.saveSettings();
-            this.plugin.refreshAllViews();
-        };
-
-        // Reset Settings Button (Material style)
-        const resetBtn = parent.createEl('button', { text: 'Restore Defaults', cls: 'sidebar-reset-btn' });
-        resetBtn.onclick = async () => {
-            this.plugin.settings.fontSize = 16;
-            this.plugin.settings.bgColor = "var(--background-primary)";
-            this.plugin.settings.textColor = "var(--text-normal)";
-            await this.plugin.saveSettings();
-            this.plugin.refreshAllViews();
-        };
-    }
-
-    private renderQueueList(parent: HTMLElement) {
-        parent.createEl('h4', { text: 'Queue', cls: 'sidebar-section-header' });
-        const list = parent.createEl('div', { cls: 'practice-queue-list' });
-
-        this.plugin.currentQueue.forEach((q, idx) => {
-            const item = list.createEl('div', { cls: 'practice-queue-item' });
-            if (idx === this.plugin.currentQIndex) item.addClass('is-active');
-
-            const result = this.plugin.sessionResults.get(q.file.path);
-            if (result === 'correct') item.addClass('is-correct');
-            else if (result === 'wrong') item.addClass('is-wrong');
-
-            item.createEl('span', { text: `${idx + 1}.`, cls: 'practice-queue-item-idx' });
-            item.createEl('span', { text: q.file.basename, cls: 'practice-queue-item-title' });
-
-            const hue = Math.round(q.familiarity * 1.2);
-            const famMarker = item.createEl('div', { cls: 'practice-queue-item-fam-dot' });
-            famMarker.style.backgroundColor = `hsl(${hue}, 80%, 45%)`;
-
-            item.onclick = () => {
-                this.plugin.currentQIndex = idx;
-                this.plugin.isFinished = false;
-                this.plugin.showingAnswer = false;
-                this.plugin.selectedChoices.clear();
-                this.plugin.saveSession();
-                this.plugin.refreshAllViews();
-            };
-
-            if (idx === this.plugin.currentQIndex) {
-                setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
-            }
-        });
-    }
-}
-
-class PracticeSettingTab extends PluginSettingTab {
-    plugin: PracticePlugin;
-    constructor(app: App, plugin: PracticePlugin) { super(app, plugin); this.plugin = plugin; }
-
-    display(): void {
-        const { containerEl } = this;
-        containerEl.empty();
-        containerEl.createEl('h2', { text: 'Practice Plugin Settings' });
-        containerEl.createEl('p', { text: 'All practice settings (filters, re-insertion offsets, and visual preferences) are now located in the Practice Control sidebar for easier access during practice sessions.' });
+        this.session.categories = ["All", ...Array.from(cats).sort()];
     }
 }
