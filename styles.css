@@ -186,18 +186,21 @@
     font-weight: 600;
     border-radius: var(--flat-radius-btn);
     cursor: pointer;
-    transition: filter 0.2s, transform 0.1s, opacity 0.2s;
+    transition: filter 0.2s, transform 0.1s, opacity 0.2s, box-shadow 0.2s;
     user-select: none;
     padding: 12px 24px;
+    box-shadow: none;
 }
 
 .draggable-btn:active {
     transform: scale(0.96);
 }
 
-.draggable-btn.is-unlocked {
-    border: 2px dashed var(--flat-warning) !important;
-    opacity: 0.8;
+.draggable-btn.is-dragging {
+    opacity: 0.9;
+    transform: scale(1.04) !important;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
+    border: 1px solid var(--flat-primary);
 }
 
 /* Button Variants */
