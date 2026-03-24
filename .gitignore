@@ -1,4 +1,8 @@
 # Build artifacts
+<<<<<<< HEAD
+=======
+main.js
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
 dist/
 build/
 
@@ -14,7 +18,11 @@ node_modules/
 
 # Personal/Vault specific
 data.json
+<<<<<<< HEAD
 # .obsidian/
+=======
+.obsidian/
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
 Practice_Sessions/
 questions.json
 
@@ -24,7 +32,14 @@ Questions_SOP/
 *.py
 *.ipynb
 *.json
+<<<<<<< HEAD
 !package.json
 !manifest.json
 !package-lock.json
 !data.json
+=======
+!manifest.json
+!package.json
+!package-lock.json
+!data.json
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182

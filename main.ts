@@ -15,6 +15,7 @@ import {
 export const VIEW_TYPE_PRACTICE = 'practice-view';
 export const VIEW_TYPE_CONTROL = 'queue-control-view';
 
+<<<<<<< HEAD
 const THEMES = [
     { name: 'Solarized Light', text: '#657b83', bg: '#fdf6e3', card: '#eee8d5' },
     { name: 'Solarized Dark', text: '#839496', bg: '#002b36', card: '#073642' },
@@ -27,6 +28,8 @@ const THEMES = [
     { name: 'Default', text: 'var(--text-normal)', bg: 'var(--background-primary)', card: 'var(--background-secondary)' }
 ];
 
+=======
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
 interface QuestionMeta {
     file: TFile;
     id: number;
@@ -41,7 +44,10 @@ interface PracticeSettings {
     fontSize: number;
     textColor: string;
     bgColor: string;
+<<<<<<< HEAD
     cardColor: string;
+=======
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
 }
 
 const DEFAULT_SETTINGS: PracticeSettings = {
@@ -50,8 +56,12 @@ const DEFAULT_SETTINGS: PracticeSettings = {
     savedIndex: 0,
     fontSize: 16,
     textColor: "var(--text-normal)",
+<<<<<<< HEAD
     bgColor: "var(--background-primary)",
     cardColor: "var(--background-secondary)"
+=======
+    bgColor: "var(--background-primary)"
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
 };
 
 export default class PracticePlugin extends Plugin {
@@ -161,6 +171,7 @@ export default class PracticePlugin extends Plugin {
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+<<<<<<< HEAD
         
         // Migration: If cardColor is default but bgColor matches a theme, fix it
         if (this.settings.cardColor === DEFAULT_SETTINGS.cardColor) {
@@ -169,6 +180,8 @@ export default class PracticePlugin extends Plugin {
                 this.settings.cardColor = matchedTheme.card;
             }
         }
+=======
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
     }
 
     async saveSettings() {
@@ -542,7 +555,10 @@ class PracticeView extends ItemView {
         questionContent.style.fontSize = `${this.plugin.settings.fontSize}px`;
         questionContent.style.color = this.plugin.settings.textColor;
         questionContent.style.backgroundColor = this.plugin.settings.bgColor;
+<<<<<<< HEAD
         questionContent.style.setProperty('--card-background', this.plugin.settings.cardColor);
+=======
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
 
         await this.renderQuestion(questionContent, qMeta);
     }
@@ -618,13 +634,19 @@ class PracticeView extends ItemView {
         await this.renderHistoryBar(container, qMeta);
 
         const stemEl = container.createEl('div', { cls: 'practice-stem material-card' });
+<<<<<<< HEAD
         stemEl.style.backgroundColor = this.plugin.settings.cardColor;
+=======
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
         await MarkdownRenderer.renderMarkdown(stemText, stemEl, qMeta.file.path, this);
 
         const choicesEl = container.createEl('div', { cls: 'practice-choices' });
         for (const choice of this.plugin.activeChoices) {
             const row = choicesEl.createEl('div', { cls: 'practice-choice material-card' });
+<<<<<<< HEAD
             row.style.backgroundColor = this.plugin.settings.cardColor;
+=======
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
             if (this.plugin.selectedChoices.has(choice.char)) row.addClass('practice-selected-choice');
 
             row.onclick = () => {
@@ -725,6 +747,7 @@ class QueueControlView extends ItemView {
         container.empty();
         container.addClass('practice-control-root');
 
+<<<<<<< HEAD
         // Sticky top section combining filters, theme grid, and compact settings
         const topSection = container.createEl('div', { cls: 'practice-control-top' });
 
@@ -748,6 +771,21 @@ class QueueControlView extends ItemView {
 
     private renderCompactFilters(parent: HTMLElement) {
         // category dropdown
+=======
+        const toolbarEl = container.createEl('div', { cls: 'practice-sidebar-toolbar' });
+        this.renderToolbar(toolbarEl);
+
+        const settingsEl = container.createEl('div', { cls: 'practice-sidebar-settings' });
+        this.renderSettings(settingsEl);
+
+        const listEl = container.createEl('div', { cls: 'practice-sidebar-queue' });
+        this.renderQueueList(listEl);
+    }
+
+    private renderToolbar(parent: HTMLElement) {
+        parent.createEl('h4', { text: 'Filters', cls: 'sidebar-section-header' });
+        
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
         const row1 = parent.createEl('div', { cls: 'practice-toolbar-row' });
         row1.createEl('span', { text: 'Category:' });
         const catSelect = row1.createEl('select');
@@ -760,19 +798,34 @@ class QueueControlView extends ItemView {
             this.plugin.refreshQueue();
         };
 
+<<<<<<< HEAD
         // familiarity slider
         const row2 = parent.createEl('div', { cls: 'practice-toolbar-row' });
         row2.createEl('span', { text: 'Max Familiarity:' });
 
+=======
+        const row2 = parent.createEl('div', { cls: 'practice-toolbar-row' });
+        row2.createEl('span', { text: 'Max Familiarity:' });
+        
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
         const sliderContainer = row2.createEl('div', { cls: 'vertical-slider-container' });
         const famSlider = sliderContainer.createEl('input', { type: 'range', cls: 'vertical-slider' });
         famSlider.min = "0"; famSlider.max = "100";
         famSlider.value = this.plugin.filterFamiliarity.toString();
+<<<<<<< HEAD
         famSlider.setAttribute('orient', 'vertical');
 
         const famLabel = sliderContainer.createEl('span', {
             text: `${this.plugin.filterFamiliarity.toFixed(0)}%`,
             cls: 'vertical-slider-label'
+=======
+        // Since input[type=range] vertical orientation is browser dependent
+        famSlider.setAttribute('orient', 'vertical');
+
+        const famLabel = sliderContainer.createEl('span', { 
+            text: `${this.plugin.filterFamiliarity.toFixed(0)}%`,
+            cls: 'vertical-slider-label' 
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
         });
 
         famSlider.oninput = () => famLabel.setText(`${famSlider.value}%`);
@@ -782,6 +835,7 @@ class QueueControlView extends ItemView {
         };
     }
 
+<<<<<<< HEAD
     private renderThemeGrid(parent: HTMLElement) {
         const grid = parent.createEl('div', { cls: 'theme-grid' });
         THEMES.forEach(theme => {
@@ -814,6 +868,11 @@ class QueueControlView extends ItemView {
     }
 
     private renderCompactSettings(parent: HTMLElement) {
+=======
+    private renderSettings(parent: HTMLElement) {
+        parent.createEl('h4', { text: 'Practice Settings', cls: 'sidebar-section-header' });
+        
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
         // Insert Position (Offsets)
         const rowOffsets = parent.createEl('div', { cls: 'practice-sidebar-setting-row' });
         rowOffsets.createEl('span', { text: 'Insert Position:', title: 'Offsets for re-inserting failed questions' });
@@ -840,10 +899,61 @@ class QueueControlView extends ItemView {
                 this.plugin.refreshAllViews();
             };
         });
+<<<<<<< HEAD
     }
 
 
 
+=======
+
+        // Color Presets & custom text color
+        const rowColor = parent.createEl('div', { cls: 'practice-sidebar-setting-row' });
+        rowColor.createEl('span', { text: 'Visual Theme:' });
+        
+        const presetsContainer = rowColor.createEl('div', { cls: 'color-presets' });
+        const themes = [
+            { name: 'Default', text: 'var(--text-normal)', bg: 'var(--background-primary)' },
+            { name: 'Dark Blue', text: '#e0e0e0', bg: '#1a202c' },
+            { name: 'Sepia', text: '#5b4636', bg: '#f4ecd8' },
+            { name: 'Matrix', text: '#00ff00', bg: '#000000' },
+            { name: 'Clean', text: '#2d3748', bg: '#ffffff' }
+        ];
+
+        themes.forEach(t => {
+            const dot = presetsContainer.createEl('div', { cls: 'color-preset', title: t.name });
+            dot.style.backgroundColor = t.bg;
+            dot.onclick = async () => {
+                this.plugin.settings.textColor = t.text;
+                this.plugin.settings.bgColor = t.bg;
+                await this.plugin.saveSettings();
+                this.plugin.refreshAllViews();
+            };
+        });
+
+        const customRow = rowColor.createEl('div', { cls: 'practice-toolbar-row' });
+        customRow.style.marginTop = '8px';
+        const customTextSpan = customRow.createEl('span', { text: 'Custom Text:' });
+        customTextSpan.style.fontSize = '0.7em';
+        const colorInput = customRow.createEl('input', { type: 'color' });
+        colorInput.value = this.plugin.settings.textColor.startsWith('var') ? "#ffffff" : this.plugin.settings.textColor;
+        colorInput.onchange = async () => {
+            this.plugin.settings.textColor = colorInput.value;
+            await this.plugin.saveSettings();
+            this.plugin.refreshAllViews();
+        };
+
+        // Reset Settings Button (Material style)
+        const resetBtn = parent.createEl('button', { text: 'Restore Defaults', cls: 'sidebar-reset-btn' });
+        resetBtn.onclick = async () => {
+            this.plugin.settings.fontSize = 16;
+            this.plugin.settings.bgColor = "var(--background-primary)";
+            this.plugin.settings.textColor = "var(--text-normal)";
+            await this.plugin.saveSettings();
+            this.plugin.refreshAllViews();
+        };
+    }
+
+>>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
     private renderQueueList(parent: HTMLElement) {
         parent.createEl('h4', { text: 'Queue', cls: 'sidebar-section-header' });
         const list = parent.createEl('div', { cls: 'practice-queue-list' });
