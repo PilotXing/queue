@@ -1,0 +1,30 @@
+# Build artifacts
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# OS/IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.log
+
+# Personal/Vault specific
+data.json
+# .obsidian/
+Practice_Sessions/
+questions.json
+
+# Processed Data & Dev Tools
+Questions_Import/
+Questions_SOP/
+*.py
+*.ipynb
+*.json
+!package.json
+!manifest.json
+!package-lock.json
+!data.json
