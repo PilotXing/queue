@@ -1,17 +1,10 @@
 {
 	"id": "queue",
 	"name": "Queue - Spaced Repetition",
-<<<<<<< HEAD
 	"version": "1.2.0",
 	"minAppVersion": "1.1.0",
 	"description": "A powerful local MCQ practicing plugin using spaced repetition and markdown properties.",
 	"author": "Antigravity",
-=======
-	"version": "1.1.0-beta.1",
-	"minAppVersion": "1.1.0",
-	"description": "A powerful local MCQ practicing plugin using spaced repetition and markdown properties.",
-	"author": "You",
->>>>>>> c526f5c9255d7d3527c69089b49c7fe631897182
 	"authorUrl": "",
 	"isDesktopOnly": false
 }
