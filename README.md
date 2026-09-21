@@ -19,6 +19,9 @@ A powerful spaced repetition and practice plugin for Obsidian, designed with Goo
     - **Vertical Progress Bar (VPB)**: A 1-character width sidebar in the practice tab shows your session results at a glance.
     - **Question History Bar**: A trial-by-trial colored history bar at the top of each question shows your past performance.
 - **In-Sidebar Settings**: Adjust font size, text colors, background colors, and re-insertion offsets directly from the control sidebar.
+- **Adaptive FSRS Scheduler**: Optionally prioritize due and low-recall questions using Difficulty, Stability, and Retrievability while preserving the legacy familiarity scheduler as a rollback mode.
+- **Short-Answer Practice**: Store one question per Markdown file, type a free-form answer, then self-assess or use an optional OpenAI-compatible AI endpoint with explicit confirmation and override controls.
+- **Configurable AI Privacy**: AI grading is disabled by default. Queue can call a local/proxy endpoint without credentials or store an optional API token as plaintext in plugin `data.json` for direct bearer-authenticated requests. Response timing stays local.
 
 ## Usage
 
@@ -28,6 +31,8 @@ A powerful spaced repetition and practice plugin for Obsidian, designed with Goo
     - **Keyboard (Desktop)**: Use `A-F` or `1-6` to select, `Enter` to submit/next, `S` to show answer, and `N` to skip/master.
     - **Touch (Mobile)**: Use the ABCD... buttons at the bottom for easy selection and navigation.
 4. **Summary**: After finishing the queue, view your session stats and choose to restart or create a new session.
+
+Select `Legacy familiarity` or `FSRS adaptive` in the Queue Control sidebar. FSRS settings, short-answer AI settings, and privacy controls are available in the plugin settings.
 
 ## Data Structure Templates
 
@@ -94,6 +99,26 @@ timestamp: 2026-03-14_13-00-00
 [[Questions/Q102|Q102]]
 ```
 
+### 3. Short-Answer File Template
+
+```markdown
+---
+queue_schema: 1
+queue_id: aviation_example_001
+type: short-answer
+category: Aviation
+tags: ["q", "aviation"]
+fsrs: {"schemaVersion":1,"modelVersion":"v5.4.2 using FSRS-6.0","mastered":false,"due":"2026-09-21T00:00:00.000Z","stability":0,"difficulty":0,"elapsed_days":0,"scheduled_days":0,"reps":0,"lapses":0,"state":0,"learning_steps":0,"last_review":null}
+---
+# Question
+Explain the concept in your own words.
+
+# Reference Answer
+The authoritative reference answer goes here.
+```
+
+Queue appends versioned JSONL review events to a fenced `queue-history` block in the same file, so the scheduling state and history move with the question.
+
 ## Installation
 
 1. Copy `main.js`, `manifest.json`, and `styles.css` to your vault's `.obsidian/plugins/queue/` directory.
@@ -103,5 +128,7 @@ timestamp: 2026-03-14_13-00-00
 
 ```bash
 npm install
-npm run build
+npm run check
 ```
+
+Migration and repair commands are dry-run by default. Read their `--help` output and create an external backup before any explicit apply/write mode.

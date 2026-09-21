@@ -1,17 +1,28 @@
 {
   "name": "obsidian-practice-plugin",
   "version": "1.2.0",
-  "description": "Obsidian plugin for spaced-repetition MCQ practice",
+  "description": "Obsidian FSRS practice plugin for Markdown multiple-choice and short-answer questions",
   "main": "main.js",
   "scripts": {
     "dev": "esbuild \"main.ts\" --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --external:electron --watch",
-    "build": "esbuild \"main.ts\" --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --external:electron"
+    "build": "esbuild \"main.ts\" --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --external:electron",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit && vitest run && npm run build",
+    "deploy": "./deploy.sh",
+    "history:repair": "esbuild scripts/repair-history-tables.ts --bundle --platform=node --format=cjs --outfile=/tmp/queue-history-repair.cjs && node /tmp/queue-history-repair.cjs",
+    "fsrs:migrate": "esbuild scripts/migrate-legacy-fsrs.ts --bundle --platform=node --format=cjs --outfile=/tmp/queue-fsrs-migration.cjs && node /tmp/queue-fsrs-migration.cjs",
+    "aviation:migration": "esbuild scripts/migrate-aviation-qa.ts --bundle --platform=node --format=cjs --outfile=/tmp/queue-aviation-migration.cjs && node /tmp/queue-aviation-migration.cjs"
   },
   "devDependencies": {
-    "@types/node": "^16.11.29",
-    "esbuild": "^0.27.4",
+    "@types/node": "^24.13.6",
+    "esbuild": "^0.28.1",
     "obsidian": "latest",
     "tslib": "^2.4.0",
-    "typescript": "^4.7.4"
+    "typescript": "5.9",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "ts-fsrs": "^5.4.2"
   }
 }

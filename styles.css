@@ -428,6 +428,28 @@ body.is-practicing .mobile-navbar {
     /* Reduced from 6px */
 }
 
+.practice-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.practice-refresh-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm, 4px);
+}
+
+.practice-refresh-btn:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+}
+
 .practice-toolbar-row span,
 .practice-sidebar-setting-row span {
     font-size: var(--font-size-sm);
@@ -642,4 +664,153 @@ body.is-practicing .mobile-navbar {
     font-weight: 700;
     border-radius: var(--restart-button-border-radius);
     box-shadow: var(--md-shadow-2);
+}
+
+/* Short-answer practice */
+.practice-short-answer-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 10rem;
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    resize: vertical;
+    color: var(--theme-text, var(--text-normal));
+    background: var(--theme-card, var(--background-secondary));
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-lg);
+    font: inherit;
+    line-height: 1.5;
+}
+
+.practice-short-answer-input:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+    outline: none;
+}
+
+.practice-short-answer-reference,
+.practice-short-answer-submitted,
+.practice-short-answer-feedback,
+.practice-short-answer-rubric,
+.practice-short-answer-error {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    color: var(--theme-text, var(--text-normal));
+    background: var(--theme-card, var(--background-secondary));
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-lg);
+}
+
+.practice-short-answer-reference {
+    border-left: 4px solid var(--interactive-accent) !important;
+}
+
+.practice-short-answer-feedback {
+    border-left: 4px solid var(--color-blue, var(--interactive-accent)) !important;
+}
+
+.practice-short-answer-rubric summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.practice-short-answer-preserved-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.practice-short-answer-feedback-section ul {
+    margin-top: var(--spacing-xs);
+}
+
+.practice-short-answer-confirmation,
+.practice-privacy-disclosure {
+    padding: var(--spacing-sm);
+    color: var(--text-muted);
+    background: var(--background-secondary);
+    border-radius: var(--radius-md);
+}
+
+.practice-short-answer-ratings {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.practice-short-answer-ratings button.is-proposed {
+    color: var(--text-on-accent);
+    background: var(--interactive-accent);
+}
+
+.practice-short-answer-score-row {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+    margin: var(--spacing-sm) 0;
+}
+
+.practice-score-badge {
+    font-weight: 600;
+    font-size: var(--font-size-md);
+    padding: 2px 10px;
+    border-radius: var(--radius-sm, 4px);
+    display: inline-block;
+}
+
+.practice-score-badge.is-pass {
+    background-color: rgba(46, 160, 67, 0.2);
+    color: var(--text-success, #2ea043);
+    border: 1px solid rgba(46, 160, 67, 0.4);
+}
+
+.practice-score-badge.is-near {
+    background-color: rgba(218, 165, 32, 0.2);
+    color: var(--text-warning, #d29922);
+    border: 1px solid rgba(218, 165, 32, 0.4);
+}
+
+.practice-score-badge.is-fail {
+    background-color: rgba(248, 81, 73, 0.2);
+    color: var(--text-error, #f85149);
+    border: 1px solid rgba(248, 81, 73, 0.4);
+}
+
+.practice-confidence-badge {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.practice-btn-next {
+    margin-top: var(--spacing-sm);
+    width: 100%;
+}
+
+.practice-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin: var(--spacing-sm) 0;
+}
+
+.practice-setting-row > input[type='text'],
+.practice-setting-row > input[type='number'] {
+    width: min(28rem, 60%);
+}
+
+@media (max-width: 600px) {
+    .practice-short-answer-ratings {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .practice-setting-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .practice-setting-row > input[type='text'],
+    .practice-setting-row > input[type='number'] {
+        width: 100%;
+    }
 }

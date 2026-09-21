@@ -19,6 +19,9 @@
     - **垂直进度条 (VPB)**：练习标签页侧边 1 字符宽的进度条，一眼识别会话结果。
     - **题目历史栏**：题目顶部显示逐次尝试的彩色历史条，直观了解过去表现。
 - **侧边栏内置设置**：直接从侧边栏调整字体大小、文本颜色、背景颜色和重插入间隔。
+- **FSRS 自适应调度**：可按难度、记忆稳定性和当前可回忆概率优先安排到期题，同时保留旧熟悉度算法作为回退模式。
+- **简答题练习**：每题一个 Markdown 文件，可输入自由文本答案，并选择人工自评或可选的 AI 辅助评分；AI 建议始终可确认和覆盖。
+- **可配置的 AI 隐私方式**：AI 默认关闭。Queue 可免密连接本地/代理端点，也可把可选 API Token 以明文保存在插件 `data.json` 中，用于直连 Bearer 认证；答题耗时只在本地计算。
 
 ## 使用方法
 
@@ -28,6 +31,8 @@
     - **键盘（桌面端）**：使用 `A-F` 或 `1-6` 进行选择，`Enter` 提交/下一题，`S` 显示答案，`N` 跳过/掌握。
     - **触摸（移动端）**：点击底部的 ABCD... 按钮进行选择和导航。
 4. **总结**：完成队列后，查看会话统计数据，并选择重新开始或创建新会话。
+
+可在 Queue 控制侧边栏选择“旧熟悉度”或“FSRS 自适应”调度；FSRS 高级参数、简答题 AI 和隐私选项位于插件设置中。
 
 ## 数据结构模板
 
@@ -94,6 +99,26 @@ timestamp: 2026-03-14_13-00-00
 [[Questions/Q102|Q102]]
 ```
 
+### 3. 简答题文件模板
+
+```markdown
+---
+queue_schema: 1
+queue_id: aviation_example_001
+type: short-answer
+category: Aviation
+tags: ["q", "aviation"]
+fsrs: {"schemaVersion":1,"modelVersion":"v5.4.2 using FSRS-6.0","mastered":false,"due":"2026-09-21T00:00:00.000Z","stability":0,"difficulty":0,"elapsed_days":0,"scheduled_days":0,"reps":0,"lapses":0,"state":0,"learning_steps":0,"last_review":null}
+---
+# Question
+请用自己的话解释这个概念。
+
+# Reference Answer
+在这里填写权威参考答案。
+```
+
+Queue 会在同一文件末尾追加版本化的 `queue-history` JSONL 记录，因此题目、调度状态和完整历史会一起移动与同步。
+
 ## 安装
 
 1. 将 `main.js`、`manifest.json` 和 `styles.css` 复制到您仓库的 `.obsidian/plugins/queue/` 目录中。
@@ -103,6 +128,7 @@ timestamp: 2026-03-14_13-00-00
 
 ```bash
 npm install
-npm run build
+npm run check
 ```
-运动
+
+迁移与修复命令默认只做 dry-run。任何显式 apply/write 操作前，请先查看命令的 `--help` 并在题库外建立新备份。

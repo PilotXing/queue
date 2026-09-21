@@ -2,8 +2,8 @@
 	"id": "queue",
 	"name": "Queue - Spaced Repetition",
 	"version": "1.2.0",
-	"minAppVersion": "1.1.0",
-	"description": "A powerful local MCQ practicing plugin using spaced repetition and markdown properties.",
+	"minAppVersion": "1.4.4",
+	"description": "Adaptive FSRS practice for Markdown multiple-choice and short-answer questions.",
 	"author": "Antigravity",
 	"authorUrl": "",
 	"isDesktopOnly": false

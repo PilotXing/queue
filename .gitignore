@@ -21,11 +21,18 @@ questions.json
 test.md
 new-note.md
 handoff-summary.md
+HANDOFF.md
+IMPLEMENTATION_PLAN.md
+MANUAL_SMOKE_TEST.md
 CLAUDE.md
+cards/
+conversation.pdf
 
 # Processed Data & Dev Tools
 Questions_Import/
 Questions_SOP/
+__pycache__/
+*.pyc
 *.py
 *.ipynb
 *.json
